@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"extensions": {
+		"recommendations": [
+			"dbaeumer.vscode-eslint"
+		]
+	},
+	"settings": {
+		"files.exclude": {
+			"node_modules/": true,
+			"**/*.js": true,
+			"**/*.js.map": true,
+		}
+	}
+}
