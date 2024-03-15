@@ -32,16 +32,33 @@ class Mod implements IPreAkiLoadMod {
     let allQuests: Record<string, IQuest> | undefined;
     let originalLootTables: Record<string, IStaticLootDetails> | undefined;
 
+    function handleStateChange(sessionId: string, incrementRaidCount: boolean) {
+      const fullProfile = profileHelper.getFullProfile(sessionId);
+      const tables = databaseServer.getTables();
+
+      updatePityTracker(fullProfile, tables, incrementRaidCount);
+
+      if (allQuests && originalLootTables && tables.loot) {
+        tables.loot.staticLoot = getUpdatedLootTables(
+          fullProfile,
+          appliesToQuests
+            ? getTrackedQuestionConditions(fullProfile, allQuests)
+            : [],
+          appliesToHideout && tables.hideout
+            ? getAugmentedHideoutUpgrades(tables.hideout.areas, fullProfile)
+            : [],
+          originalLootTables
+        );
+      }
+    }
+
     staticRouterModService.registerStaticRouter(
       "PityLootInit",
       [
         {
           url: "/client/game/start",
           action: (url, info, sessionId, output) => {
-            const fullProfile = profileHelper.getFullProfile(sessionId);
             const tables = databaseServer.getTables();
-            // Update the pity tracker at startup but don't increment raid count to start tracking when hideout upgrades become available
-            updatePityTracker(fullProfile, tables, false);
 
             // Store quests and loot tables at startup, so that we always get them after all other mods have loaded and possibly changed their settings (e.g. AlgorithmicQuestRandomizer or AllTheLoot)
             // We could try and do this by hooking into postAkiLoad and making this mod last in the load order, but this seems like a more reliable solution
@@ -52,23 +69,7 @@ class Mod implements IPreAkiLoadMod {
               // the reason we also store original loot tables only once is so that when calculating new odds, we don't have to do funky math to undo previous increases
               originalLootTables = tables.loot?.staticLoot;
             }
-
-            // TODO: dedupe this shit
-            if (allQuests && originalLootTables && tables.loot) {
-              tables.loot.staticLoot = getUpdatedLootTables(
-                fullProfile,
-                appliesToQuests
-                  ? getTrackedQuestionConditions(fullProfile, allQuests)
-                  : [],
-                appliesToHideout && tables.hideout
-                  ? getAugmentedHideoutUpgrades(
-                      tables.hideout.areas,
-                      fullProfile
-                    )
-                  : [],
-                originalLootTables
-              );
-            }
+            handleStateChange(sessionId, false);
 
             return output;
           },
@@ -83,28 +84,10 @@ class Mod implements IPreAkiLoadMod {
         {
           url: "/raid/profile/save",
           action: (_url, info: ISaveProgressRequestData, sessionId, output) => {
-            const fullProfile = profileHelper.getFullProfile(sessionId);
-            const tables = databaseServer.getTables();
-
-            if (!info.isPlayerScav || includeScavRaids) {
-              updatePityTracker(fullProfile, tables, true);
-            }
-
-            if (allQuests && originalLootTables && tables.loot) {
-              tables.loot.staticLoot = getUpdatedLootTables(
-                fullProfile,
-                appliesToQuests
-                  ? getTrackedQuestionConditions(fullProfile, allQuests)
-                  : [],
-                appliesToHideout && tables.hideout
-                  ? getAugmentedHideoutUpgrades(
-                      tables.hideout.areas,
-                      fullProfile
-                    )
-                  : [],
-                originalLootTables
-              );
-            }
+            handleStateChange(
+              sessionId,
+              !info.isPlayerScav || includeScavRaids
+            );
             return output;
           },
         },
@@ -133,28 +116,7 @@ class Mod implements IPreAkiLoadMod {
             if (!pityStatusChanged) {
               return output;
             }
-            // quest has been completed, or partially handed over, re-update odds
-            const fullProfile = profileHelper.getFullProfile(sessionId);
-            const tables = databaseServer.getTables();
-
-            updatePityTracker(fullProfile, tables, false);
-
-            if (allQuests && originalLootTables && tables.loot) {
-              tables.loot.staticLoot = getUpdatedLootTables(
-                fullProfile,
-                appliesToQuests
-                  ? getTrackedQuestionConditions(fullProfile, allQuests)
-                  : [],
-                appliesToHideout && tables.hideout
-                  ? getAugmentedHideoutUpgrades(
-                      tables.hideout.areas,
-                      fullProfile
-                    )
-                  : [],
-                originalLootTables
-              );
-            }
-
+            handleStateChange(sessionId, false);
             return output;
           },
         },
