@@ -1,2 +1,12 @@
 {
+    "enabled": true,
+    "debug": true,
+    "appliesToQuests": true,
+    "appliesToHideout": true,
+    "increasesStack": true,
+    "includeScavRaids": true,
+    "maxDropRateMultiplier": 5,
+    "dropRateIncreaseType": "raid",
+    "dropRateIncreasePerRaid": 0.2,
+    "dropRateIncreasePerHour": 0.05
 }

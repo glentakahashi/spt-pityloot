@@ -9,7 +9,9 @@
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "resolveJsonModule": true,
+        "strict": true,
         "outDir": "tmp",
+        "noUncheckedIndexedAccess": true,
         "baseUrl": ".",
         "paths": {
             "@spt-aki/*": ["./types/*"]
