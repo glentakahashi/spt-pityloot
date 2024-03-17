@@ -43,10 +43,19 @@ export function getUpdatedLootTables(
     }
   });
 
-  // TODO: keep a running total of amount needed, and use that to compute which ones are possible
-  // e.g. if you have 3 quests that all need 3 wires, and you have 4 wires, you won't get any bonus, since each quest is "completable"
-  // same applies for hideouts that need 3 wires. In the best case, 1 random one would be "completable" and the others not, so you get /some/ bonus but not full
-  // in practice though, this will be rare and it'll fix itself after you turn one in, so i don't think its worth it
+  // TODO: combine the quest conditions and hideout upgrades
+  // then sort them in reverse order, so most recent ones are at the front
+  // then, iterate in order, filtering out ones that can be completed with items on hand
+  // if you find one, subtract those counts from the total, and continue iterating
+  // by the end, you'll have the maximal set of pity loot conditions, and can apply the remaining algorithms
+
+  // you have to sort by time/raids depending on config
+  // alternatively, you can sort the opposite direction, and get th eminimal set of pity conditions
+  // thats probably the easiest thing though
+
+  // or maybe sort by amount required? smallest to largest? That would be the most number of "filterable" conditions
+
+  //either way, the algo is: sort the conditions first, then filter + remove as we go, and then use the remaining for the counters
 
   // Filter out quest conditions we could complete now with the items we have in our inventory
   const incompletableConditions = questConditions.filter((condition) => {
