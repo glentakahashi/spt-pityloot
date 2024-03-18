@@ -6,6 +6,7 @@
   "increasesStack": true,
   "includeScavRaids": true,
   "includeKeys": true,
+  "keysAdditionalMultiplier": 2.5,
   "maxDropRateMultiplier": 10,
   "dropRateIncreaseType": "raid",
   "dropRateIncreasePerRaid": 0.2,

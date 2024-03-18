@@ -5,6 +5,7 @@ import {
   dropRateIncreaseType,
   dropRateIncreasePerRaid,
   dropRateIncreasePerHour,
+  keysAdditionalMultiplier,
   increasesStack,
   debug,
 } from "../config/config.json";
@@ -168,12 +169,14 @@ export class LootProbabilityManager {
       {
         timeBasedDropRateMultiplier: number;
         raidBasedDropRateMultiplier: number;
+        isKey: boolean;
       }
     > = {};
     incompleteItemRequirements.forEach((req) => {
       const stats = (itemDropRateMultipliers[req.itemId] ??= {
         timeBasedDropRateMultiplier: 1,
         raidBasedDropRateMultiplier: 1,
+        isKey: req.type === "questKey",
       });
       // time is in seconds, so we convert to hours
       const hoursSinceStarted = Math.round(req.secondsSinceStarted / 60 / 60);
@@ -196,7 +199,7 @@ export class LootProbabilityManager {
     debug &&
       Object.entries(itemDropRateMultipliers).forEach(([k, v]) => {
         this.logger.info(
-          `Calculated new drop rate multiplier for ${k}: ${
+          `Calculated new drop rate ${dropRateIncreaseType} multiplier for ${k}: ${
             dropRateIncreaseType === "raid"
               ? v.raidBasedDropRateMultiplier
               : v.timeBasedDropRateMultiplier
@@ -221,6 +224,10 @@ export class LootProbabilityManager {
               maxDropRateMultiplier,
               maybeMult.timeBasedDropRateMultiplier
             );
+          }
+          // Adjust for if its a key
+          if (maybeMult.isKey) {
+            newRelativeProbability *= keysAdditionalMultiplier;
           }
           newRelativeProbability = Math.round(newRelativeProbability);
           debug &&
