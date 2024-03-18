@@ -36,7 +36,11 @@ export function maybeCreatePityTrackerDatabase() {
     fs.mkdirSync(databaseDir, { recursive: true });
   }
   if (!fs.existsSync(pityTrackerPath)) {
-    fs.writeFileSync(pityTrackerPath, "{}");
+    const emptyTracker: PityTracker = {
+      hideout: {},
+      quests: {},
+    };
+    fs.writeFileSync(pityTrackerPath, JSON.stringify(emptyTracker));
   }
 }
 
