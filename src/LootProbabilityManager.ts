@@ -157,7 +157,7 @@ export class LootProbabilityManager {
 
     debug &&
       incompleteItemRequirements.forEach((req) => {
-        this.logger.debug(
+        this.logger.info(
           `Found incomplete item requirements. type: ${req.type}, itemId: ${req.itemId}, amountRequired: ${req.amountRequired}`
         );
       });
@@ -195,7 +195,7 @@ export class LootProbabilityManager {
 
     debug &&
       Object.entries(itemDropRateMultipliers).forEach(([k, v]) => {
-        this.logger.debug(
+        this.logger.info(
           `Calculated new drop rate multiplier for ${k}: ${
             dropRateIncreaseType === "raid"
               ? v.raidBasedDropRateMultiplier
@@ -224,7 +224,7 @@ export class LootProbabilityManager {
           }
           newRelativeProbability = Math.round(newRelativeProbability);
           debug &&
-            this.logger.debug(
+            this.logger.info(
               `Updated drop rate for item ${dist.tpl} in container ${containerId} from ${dist.relativeProbability} to ${newRelativeProbability}`
             );
         }

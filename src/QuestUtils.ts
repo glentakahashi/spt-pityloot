@@ -60,8 +60,7 @@ export class QuestUtils {
       : 0;
     const completedConditions = questStatus.completedConditions ?? [];
     const itemConditions = quest.conditions.AvailableForFinish.filter(
-      (condition) =>
-        condition._parent === "HandoverItem" || condition._parent === "FindItem"
+      (condition) => condition._parent === "HandoverItem"
     );
     const missingItemConditions = itemConditions.filter(
       (condition) => !completedConditions.includes(condition._props.id)

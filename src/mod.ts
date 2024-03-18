@@ -34,6 +34,7 @@ class Mod implements IPreAkiLoadMod {
     const hideoutUtils = new HideoutUtils(logger);
     const questUtils = new QuestUtils(logger);
     const pityLootManager = new LootProbabilityManager(logger);
+
     let allQuests: Record<string, IQuest> | undefined;
     let originalLootTables: Record<string, IStaticLootDetails> | undefined;
 
