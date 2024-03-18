@@ -5,7 +5,7 @@ import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
 import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
 import { IQuest } from "@spt-aki/models/eft/common/tables/IQuest";
 import { IStaticLootDetails } from "@spt-aki/models/eft/common/tables/ILootBase";
-import { getUpdatedLootTables } from "./LootProbabilityManager";
+import { LootProbabilityManager } from "./LootProbabilityManager";
 import { ISaveProgressRequestData } from "@spt-aki/models/eft/inRaid/ISaveProgressRequestData";
 import {
   enabled,
@@ -16,8 +16,9 @@ import {
 import { IItemEventRouterRequest } from "@spt-aki/models/eft/itemEvent/IItemEventRouterRequest";
 import { HideoutEventActions } from "@spt-aki/models/enums/HideoutEventActions";
 import { updatePityTracker } from "./DatabaseUtils";
-import { getTrackedQuestionConditions } from "./QuestUtils";
-import { getAugmentedHideoutUpgrades } from "./HideoutUtils";
+import { QuestUtils } from "./QuestUtils";
+import { HideoutUtils } from "./HideoutUtils";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 
 class Mod implements IPreAkiLoadMod {
   preAkiLoad(container: DependencyContainer): void {
@@ -29,6 +30,10 @@ class Mod implements IPreAkiLoadMod {
       "StaticRouterModService"
     );
     const databaseServer = container.resolve<DatabaseServer>("DatabaseServer");
+    const logger = container.resolve<ILogger>("WinstonLogger");
+    const hideoutUtils = new HideoutUtils(logger);
+    const questUtils = new QuestUtils(logger);
+    const pityLootManager = new LootProbabilityManager(logger);
     let allQuests: Record<string, IQuest> | undefined;
     let originalLootTables: Record<string, IStaticLootDetails> | undefined;
 
@@ -36,16 +41,26 @@ class Mod implements IPreAkiLoadMod {
       const fullProfile = profileHelper.getFullProfile(sessionId);
       const tables = databaseServer.getTables();
 
-      updatePityTracker(fullProfile, tables, incrementRaidCount);
+      updatePityTracker(
+        fullProfile,
+        hideoutUtils.getPossibleHideoutUpgrades(
+          tables.hideout?.areas ?? [],
+          fullProfile
+        ),
+        incrementRaidCount
+      );
 
       if (allQuests && originalLootTables && tables.loot) {
-        tables.loot.staticLoot = getUpdatedLootTables(
+        tables.loot.staticLoot = pityLootManager.getUpdatedLootTables(
           fullProfile,
           appliesToQuests
-            ? getTrackedQuestionConditions(fullProfile, allQuests)
+            ? questUtils.getInProgressQuestRequirements(fullProfile, allQuests)
             : [],
           appliesToHideout && tables.hideout
-            ? getAugmentedHideoutUpgrades(tables.hideout.areas, fullProfile)
+            ? hideoutUtils.getHideoutRequirements(
+                tables.hideout.areas,
+                fullProfile
+              )
             : [],
           originalLootTables
         );

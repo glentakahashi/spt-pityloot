@@ -1,12 +1,13 @@
 {
-    "enabled": true,
-    "debug": true,
-    "appliesToQuests": true,
-    "appliesToHideout": true,
-    "increasesStack": true,
-    "includeScavRaids": true,
-    "maxDropRateMultiplier": 5,
-    "dropRateIncreaseType": "raid",
-    "dropRateIncreasePerRaid": 0.2,
-    "dropRateIncreasePerHour": 0.05
+  "enabled": true,
+  "debug": true,
+  "appliesToQuests": true,
+  "appliesToHideout": true,
+  "increasesStack": true,
+  "includeScavRaids": true,
+  "includeKeys": true,
+  "maxDropRateMultiplier": 10,
+  "dropRateIncreaseType": "raid",
+  "dropRateIncreasePerRaid": 0.2,
+  "dropRateIncreasePerHour": 0.05
 }

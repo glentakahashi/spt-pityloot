@@ -3,8 +3,7 @@ import path from "path";
 import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
 import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
 import { HideoutAreas } from "@spt-aki/models/enums/HideoutAreas";
-import { IDatabaseTables } from "@spt-aki/models/spt/server/IDatabaseTables";
-import { getPossibleHideoutUpgrades } from "./HideoutUtils";
+import { HideoutUpgradeInfo } from "./HideoutUtils";
 
 const databaseDir = path.resolve(__dirname, "../database/");
 const pityTrackerPath = path.join(databaseDir, "pityTracker.json");
@@ -48,7 +47,7 @@ export function loadPityTrackerDatabase(): PityTracker {
 // TODO: probably should support multiple profiles
 export function updatePityTracker(
   profile: IAkiProfile,
-  tables: IDatabaseTables,
+  hideoutUpgrades: HideoutUpgradeInfo[],
   incrementRaidCount: boolean
 ): void {
   const raidCountIncrease = incrementRaidCount ? 1 : 0;
@@ -64,30 +63,25 @@ export function updatePityTracker(
     }
   }
   const newHideoutTracker: HideoutTracker = {};
-  if (tables.hideout) {
-    const possibleUpgrades = getPossibleHideoutUpgrades(
-      tables.hideout.areas,
-      profile
-    );
-    for (const possibleUpgrade of possibleUpgrades) {
-      const oldStatus = pityTracker.hideout[possibleUpgrade.area] ?? {
-        currentLevel: 0,
-        raidsSinceStarted: 0,
+
+  for (const possibleUpgrade of hideoutUpgrades) {
+    const oldStatus = pityTracker.hideout[possibleUpgrade.area] ?? {
+      currentLevel: 0,
+      raidsSinceStarted: 0,
+      timeAvailable: Date.now(),
+    };
+    // if the next upgrade is higher than what we've tracked, that means we upgraded and should reset it
+    if (possibleUpgrade.level > oldStatus.currentLevel) {
+      newHideoutTracker[possibleUpgrade.area] = {
+        currentLevel: possibleUpgrade.level,
+        raidsSinceStarted: raidCountIncrease,
         timeAvailable: Date.now(),
       };
-      // if the next upgrade is higher than what we've tracked, that means we upgraded and should reset it
-      if (possibleUpgrade.level > oldStatus.currentLevel) {
-        newHideoutTracker[possibleUpgrade.area] = {
-          currentLevel: possibleUpgrade.level,
-          raidsSinceStarted: raidCountIncrease,
-          timeAvailable: Date.now(),
-        };
-      } else {
-        newHideoutTracker[possibleUpgrade.area] = {
-          ...oldStatus,
-          raidsSinceStarted: oldStatus.raidsSinceStarted + raidCountIncrease,
-        };
-      }
+    } else {
+      newHideoutTracker[possibleUpgrade.area] = {
+        ...oldStatus,
+        raidsSinceStarted: oldStatus.raidsSinceStarted + raidCountIncrease,
+      };
     }
   }
   savePityTrackerDatabase({

@@ -1,177 +1,244 @@
 import { IStaticLootDetails } from "@spt-aki/models/eft/common/tables/ILootBase";
 import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
-import { QuestCondition } from "./QuestUtils";
 import {
   maxDropRateMultiplier,
   dropRateIncreaseType,
   dropRateIncreasePerRaid,
   dropRateIncreasePerHour,
   increasesStack,
+  debug,
 } from "../config/config.json";
-import { TrackedRequiredHideoutItem } from "./HideoutUtils";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 
-type MissingItem = {
+type BaseItemRequirement = {
   itemId: string;
+  amountRequired: number;
   secondsSinceStarted: number;
   raidsSinceStarted: number;
 };
 
-export function getUpdatedLootTables(
-  profile: IAkiProfile,
-  questConditions: QuestCondition[],
-  hideoutUpgrades: TrackedRequiredHideoutItem[],
-  loot: Record<string, IStaticLootDetails>
-) {
-  // For every item, track how many total in our inventory we've found in raid or not
-  const itemsInInventory: Record<
-    string,
-    { foundInRaid: number; notFoundInRaid: number }
-  > = {};
-  profile.characters.pmc.Inventory.items.forEach((item) => {
-    const numItems = item.upd?.StackObjectsCount;
-    const foundInRaid = item.upd?.SpawnedInSession;
-    const itemRecord = (itemsInInventory[item._tpl] ??= {
-      foundInRaid: 0,
-      notFoundInRaid: 0,
-    });
-    if (numItems != null && foundInRaid != null) {
+type QuestItemRequirement = {
+  type: "quest";
+  conditionId: string;
+  foundInRaid: boolean;
+} & BaseItemRequirement;
+
+type QuestKeyRequirement = {
+  type: "questKey";
+} & BaseItemRequirement;
+
+export type HideoutItemRequirement = {
+  type: "hideout";
+} & BaseItemRequirement;
+
+export type ItemRequirement =
+  | QuestItemRequirement
+  | QuestKeyRequirement
+  | HideoutItemRequirement;
+
+export class LootProbabilityManager {
+  constructor(private logger: ILogger) {}
+
+  getUpdatedLootTables(
+    profile: IAkiProfile,
+    questItemRequirements: ItemRequirement[],
+    hideoutItemRequirements: ItemRequirement[],
+    loot: Record<string, IStaticLootDetails>
+  ) {
+    // For every item, track how many total in our inventory we've found in raid or not
+    const itemsInInventory: Record<
+      string,
+      { foundInRaid: number; notFoundInRaid: number }
+    > = {};
+    profile.characters.pmc.Inventory.items.forEach((item) => {
+      const numItems = item.upd?.StackObjectsCount;
+      const foundInRaid = item.upd?.SpawnedInSession;
+      const count = numItems ?? 1;
+      const itemRecord = (itemsInInventory[item._tpl] ??= {
+        foundInRaid: 0,
+        notFoundInRaid: 0,
+      });
       if (foundInRaid) {
-        itemRecord.foundInRaid += numItems;
+        itemRecord.foundInRaid += count;
       } else {
-        itemRecord.notFoundInRaid += numItems;
+        itemRecord.notFoundInRaid += count;
       }
-    }
-  });
-
-  // TODO: combine the quest conditions and hideout upgrades
-  // then sort them in reverse order, so most recent ones are at the front
-  // then, iterate in order, filtering out ones that can be completed with items on hand
-  // if you find one, subtract those counts from the total, and continue iterating
-  // by the end, you'll have the maximal set of pity loot conditions, and can apply the remaining algorithms
-
-  // you have to sort by time/raids depending on config
-  // alternatively, you can sort the opposite direction, and get th eminimal set of pity conditions
-  // thats probably the easiest thing though
-
-  // or maybe sort by amount required? smallest to largest? That would be the most number of "filterable" conditions
-
-  //either way, the algo is: sort the conditions first, then filter + remove as we go, and then use the remaining for the counters
-
-  // Filter out quest conditions we could complete now with the items we have in our inventory
-  const incompletableConditions = questConditions.filter((condition) => {
-    const counter =
-      profile.characters.pmc.BackendCounters[condition.conditionId];
-    const conditionProgress = counter ? counter.value : 0;
-    const numMoreNeeded = condition.amountRequired - conditionProgress;
-    const itemCount = itemsInInventory[condition.itemId] ?? {
-      foundInRaid: 0,
-      notFoundInRaid: 0,
-    };
-    // If the quest requires found in raid items, only count those in our inventory, otherwise also count non-fir
-    if (condition.foundInRaid) {
-      return itemCount.foundInRaid < numMoreNeeded;
-    } else {
-      return itemCount.notFoundInRaid + itemCount.foundInRaid < numMoreNeeded;
-    }
-  });
-
-  // Filter out hideout upgrades we could complete now with the items we have in our inventory
-  const incompletableUpgrades = hideoutUpgrades.filter((upgrade) => {
-    const itemCount = itemsInInventory[upgrade.id] ?? {
-      foundInRaid: 0,
-      notFoundInRaid: 0,
-    };
-    return itemCount.foundInRaid + itemCount.notFoundInRaid < upgrade.count;
-  });
-
-  const allIncompletables: MissingItem[] = [
-    ...incompletableConditions.map((condition) => ({
-      itemId: condition.itemId,
-      raidsSinceStarted: condition.raidsSinceStarted,
-      secondsSinceStarted: condition.secondsSinceStarted,
-    })),
-    ...incompletableUpgrades.map((upgrade) => ({
-      itemId: upgrade.id,
-      raidsSinceStarted: upgrade.raidsSinceStarted,
-      secondsSinceStarted: upgrade.secondsSinceStarted,
-    })),
-  ];
-
-  console.error(
-    incompletableConditions,
-    incompletableUpgrades,
-    allIncompletables
-  );
-
-  // With the remaining conditions, calculate the max new drop rate by item type
-  const itemDropRateMultipliers: Record<
-    string,
-    { timeBasedDropRateMultiplier: number; raidBasedDropRateMultiplier: number }
-  > = {};
-  allIncompletables.forEach((condition) => {
-    const stats = (itemDropRateMultipliers[condition.itemId] ??= {
-      timeBasedDropRateMultiplier: 1,
-      raidBasedDropRateMultiplier: 1,
     });
-    // TODO: pull out into helper functions probably
-    // time is in seconds, so we convert to hours
-    const hoursSinceStarted = Math.round(
-      condition.secondsSinceStarted / 60 / 60
-    );
-    const timeMult =
-      hoursSinceStarted * dropRateIncreasePerHour +
-      (increasesStack ? stats.timeBasedDropRateMultiplier : 1);
-    stats.timeBasedDropRateMultiplier = Math.max(
-      stats.timeBasedDropRateMultiplier,
-      timeMult
-    );
-    const raidMult =
-      condition.raidsSinceStarted * dropRateIncreasePerRaid +
-      (increasesStack ? stats.raidBasedDropRateMultiplier : 1);
-    stats.raidBasedDropRateMultiplier = Math.max(
-      stats.raidBasedDropRateMultiplier,
-      raidMult
-    );
-  });
 
-  console.dir(itemDropRateMultipliers);
-
-  // Now that we have the drop rate multipliers, calculate new loot tables
-  const newLootTables: Record<string, IStaticLootDetails> = {};
-  for (const [containerId, container] of Object.entries(loot)) {
-    const newLootDistribution = container.itemDistribution.map((dist) => {
-      const maybeMult = itemDropRateMultipliers[dist.tpl];
-      let newRelativeProbability = dist.relativeProbability;
-      if (maybeMult) {
-        if (dropRateIncreaseType === "raid") {
-          newRelativeProbability *= Math.min(
-            maxDropRateMultiplier,
-            maybeMult.raidBasedDropRateMultiplier
-          );
-        } else {
-          newRelativeProbability *= Math.min(
-            maxDropRateMultiplier,
-            maybeMult.timeBasedDropRateMultiplier
-          );
+    // Checks if we have enough items in our inventory, and if so removes them from the inventory and returns true
+    // otherwise returns false
+    function checkIfHasEnoughAndRemove(
+      itemCount: (typeof itemsInInventory)[string],
+      amountNeeded: number,
+      foundInRaid: boolean
+    ): boolean {
+      // If its required to be found in raid,
+      if (foundInRaid) {
+        if (itemCount.foundInRaid >= amountNeeded) {
+          itemCount.foundInRaid -= amountNeeded;
+          return true;
         }
-        newRelativeProbability = Math.round(newRelativeProbability);
-        console.log("Drop rate updated", {
-          containerId,
-          itemId: dist.tpl,
-          oldProb: dist.relativeProbability,
-          newProb: newRelativeProbability,
-        });
+        return false;
+      } else {
+        // If we have enough purely from non-fir, use those entirely
+        if (itemCount.notFoundInRaid >= amountNeeded) {
+          itemCount.notFoundInRaid -= amountNeeded;
+          return true;
+          // Otherwise use a combo of non-fir then fir
+        } else if (
+          itemCount.notFoundInRaid + itemCount.foundInRaid >=
+          amountNeeded
+        ) {
+          // Since we know we don't have enough non-fir, subtract that total count from needed, and set it to -1
+          amountNeeded -= itemCount.notFoundInRaid;
+          itemCount.notFoundInRaid = -1;
+          // then subtract the remaining from fir
+          itemCount.foundInRaid -= amountNeeded;
+          return true;
+        }
+        return false;
       }
-      return {
-        tpl: dist.tpl,
-        relativeProbability: newRelativeProbability,
-      };
+    }
+
+    const allItemRequirements = [
+      ...questItemRequirements,
+      ...hideoutItemRequirements,
+    ];
+
+    // sort requirements by foundInRaid being first priority, then in ascending pity (based on your config)
+    // There is no "right" ordering here, we don't know what order people will actually complete in, so this is a sort of heuristic, but thats fine imo
+    // Example, you have a 10 raid old (fir) quest and a 5 raid old hideout that require 1 of the same item.
+    // If you have 0, with stacking odds you would have 15 pity stacks, or with max odds you would have 10 pity stacks
+    // If you have 2, both are 'completable' so you have 0 pity stacks
+    // If you have 1, we would filter the quest out, so your pity stacks would be 5 (from the hideout).
+    // But the above would be "wrong" if you decide to complete the hideout, and you'd be getting less pity than you should.
+    // If you turn in the hideout, the pity stacks would go back to being 10, so it'll fix itself once you turn in anyways.
+    // Theres a lot of complicated solutions, and if theres a consistent expectation of the "right" task to complete we could program that
+    // but since its based on user preference, I'm just doing this yolo
+    allItemRequirements.sort((a, b) => {
+      const aFir = a.type === "quest" && a.foundInRaid;
+      const bFir = b.type === "quest" && b.foundInRaid;
+      if (aFir && !bFir) {
+        return -1;
+      } else if (bFir && !aFir) {
+        return 1;
+      } else {
+        if (dropRateIncreaseType === "raid") {
+          return a.raidsSinceStarted - b.raidsSinceStarted;
+        } else {
+          return a.secondsSinceStarted - b.secondsSinceStarted;
+        }
+      }
     });
-    const newContainer: IStaticLootDetails = {
-      itemcountDistribution: container.itemcountDistribution,
-      itemDistribution: newLootDistribution,
-    };
-    newLootTables[containerId] = newContainer;
+
+    // Filter the requirements based on the ordering, removing them from the list and decrementing inventory counts if they meet the requirements
+    // Return `false` if we /can/ complete the quest, `true` if we can't and should apply pity conditions
+    const incompleteItemRequirements = allItemRequirements.filter((req) => {
+      const itemCount = itemsInInventory[req.itemId];
+      if (!itemCount) {
+        // If we don't have any of the time, its never possible to complete it
+        return true;
+      }
+      if (req.type === "questKey") {
+        return !checkIfHasEnoughAndRemove(itemCount, 1, false);
+      } else if (req.type === "quest") {
+        const counter = profile.characters.pmc.BackendCounters[req.conditionId];
+        const conditionProgress = counter ? counter.value : 0;
+        const numMoreNeeded = req.amountRequired - conditionProgress;
+        return !checkIfHasEnoughAndRemove(
+          itemCount,
+          numMoreNeeded,
+          req.foundInRaid
+        );
+      } else if (req.type === "hideout") {
+        return !checkIfHasEnoughAndRemove(itemCount, req.amountRequired, false);
+      }
+    });
+
+    debug &&
+      incompleteItemRequirements.forEach((req) => {
+        this.logger.debug(
+          `Found incomplete item requirements. type: ${req.type}, itemId: ${req.itemId}, amountRequired: ${req.amountRequired}`
+        );
+      });
+
+    // With the remaining conditions, calculate the max new drop rate by item type
+    const itemDropRateMultipliers: Record<
+      string,
+      {
+        timeBasedDropRateMultiplier: number;
+        raidBasedDropRateMultiplier: number;
+      }
+    > = {};
+    incompleteItemRequirements.forEach((req) => {
+      const stats = (itemDropRateMultipliers[req.itemId] ??= {
+        timeBasedDropRateMultiplier: 1,
+        raidBasedDropRateMultiplier: 1,
+      });
+      // time is in seconds, so we convert to hours
+      const hoursSinceStarted = Math.round(req.secondsSinceStarted / 60 / 60);
+      const timeMult =
+        hoursSinceStarted * dropRateIncreasePerHour +
+        (increasesStack ? stats.timeBasedDropRateMultiplier : 1);
+      stats.timeBasedDropRateMultiplier = Math.max(
+        stats.timeBasedDropRateMultiplier,
+        timeMult
+      );
+      const raidMult =
+        req.raidsSinceStarted * dropRateIncreasePerRaid +
+        (increasesStack ? stats.raidBasedDropRateMultiplier : 1);
+      stats.raidBasedDropRateMultiplier = Math.max(
+        stats.raidBasedDropRateMultiplier,
+        raidMult
+      );
+    });
+
+    debug &&
+      Object.entries(itemDropRateMultipliers).forEach(([k, v]) => {
+        this.logger.debug(
+          `Calculated new drop rate multiplier for ${k}: ${
+            dropRateIncreaseType === "raid"
+              ? v.raidBasedDropRateMultiplier
+              : v.timeBasedDropRateMultiplier
+          }`
+        );
+      });
+
+    // Now that we have the drop rate multipliers, calculate new loot tables
+    const newLootTables: Record<string, IStaticLootDetails> = {};
+    for (const [containerId, container] of Object.entries(loot)) {
+      const newLootDistribution = container.itemDistribution.map((dist) => {
+        const maybeMult = itemDropRateMultipliers[dist.tpl];
+        let newRelativeProbability = dist.relativeProbability;
+        if (maybeMult) {
+          if (dropRateIncreaseType === "raid") {
+            newRelativeProbability *= Math.min(
+              maxDropRateMultiplier,
+              maybeMult.raidBasedDropRateMultiplier
+            );
+          } else {
+            newRelativeProbability *= Math.min(
+              maxDropRateMultiplier,
+              maybeMult.timeBasedDropRateMultiplier
+            );
+          }
+          newRelativeProbability = Math.round(newRelativeProbability);
+          debug &&
+            this.logger.debug(
+              `Updated drop rate for item ${dist.tpl} in container ${containerId} from ${dist.relativeProbability} to ${newRelativeProbability}`
+            );
+        }
+        return {
+          tpl: dist.tpl,
+          relativeProbability: newRelativeProbability,
+        };
+      });
+      const newContainer: IStaticLootDetails = {
+        itemcountDistribution: container.itemcountDistribution,
+        itemDistribution: newLootDistribution,
+      };
+      newLootTables[containerId] = newContainer;
+    }
+    return newLootTables;
   }
-  return newLootTables;
 }
