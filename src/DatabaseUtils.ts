@@ -40,7 +40,7 @@ export function maybeCreatePityTrackerDatabase() {
       hideout: {},
       quests: {},
     };
-    fs.writeFileSync(pityTrackerPath, JSON.stringify(emptyTracker));
+    savePityTrackerDatabase(emptyTracker);
   }
 }
 
