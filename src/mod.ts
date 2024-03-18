@@ -15,7 +15,10 @@ import {
 } from "../config/config.json";
 import { IItemEventRouterRequest } from "@spt-aki/models/eft/itemEvent/IItemEventRouterRequest";
 import { HideoutEventActions } from "@spt-aki/models/enums/HideoutEventActions";
-import { updatePityTracker } from "./DatabaseUtils";
+import {
+  maybeCreatePityTrackerDatabase,
+  updatePityTracker,
+} from "./DatabaseUtils";
 import { QuestUtils } from "./QuestUtils";
 import { HideoutUtils } from "./HideoutUtils";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
@@ -37,6 +40,8 @@ class Mod implements IPreAkiLoadMod {
 
     let allQuests: Record<string, IQuest> | undefined;
     let originalLootTables: Record<string, IStaticLootDetails> | undefined;
+
+    maybeCreatePityTrackerDatabase();
 
     function handleStateChange(sessionId: string, incrementRaidCount: boolean) {
       const fullProfile = profileHelper.getFullProfile(sessionId);
