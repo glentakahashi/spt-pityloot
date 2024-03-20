@@ -4,7 +4,7 @@ import type { StaticRouterModService } from "@spt-aki/services/mod/staticRouter/
 import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
 import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
 import { IQuest } from "@spt-aki/models/eft/common/tables/IQuest";
-import { IStaticLootDetails } from "@spt-aki/models/eft/common/tables/ILootBase";
+import { ILootBase } from "@spt-aki/models/eft/common/tables/ILootBase";
 import { LootProbabilityManager } from "./LootProbabilityManager";
 import { ISaveProgressRequestData } from "@spt-aki/models/eft/inRaid/ISaveProgressRequestData";
 import {
@@ -23,6 +23,7 @@ import {
 import { QuestUtils } from "./QuestUtils";
 import { HideoutUtils } from "./HideoutUtils";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ILocations } from "@spt-aki/models/spt/server/ILocations";
 
 class Mod implements IPreAkiLoadMod {
   preAkiLoad(container: DependencyContainer): void {
@@ -40,7 +41,8 @@ class Mod implements IPreAkiLoadMod {
     const pityLootManager = new LootProbabilityManager(logger);
 
     let allQuests: Record<string, IQuest> | undefined;
-    let originalLootTables: Record<string, IStaticLootDetails> | undefined;
+    let originalLootTables: ILootBase | undefined;
+    let originalLocations: ILocations | undefined;
 
     maybeCreatePityTrackerDatabase();
 
@@ -62,8 +64,8 @@ class Mod implements IPreAkiLoadMod {
         incrementRaidCount
       );
 
-      if (allQuests && originalLootTables && tables.loot) {
-        tables.loot.staticLoot = pityLootManager.getUpdatedLootTables(
+      if (allQuests && originalLootTables && originalLocations) {
+        [tables.loot, tables.locations] = pityLootManager.getUpdatedLootTables(
           fullProfile,
           appliesToQuests
             ? questUtils.getInProgressQuestRequirements(fullProfile, allQuests)
@@ -74,7 +76,8 @@ class Mod implements IPreAkiLoadMod {
                 fullProfile
               )
             : [],
-          originalLootTables
+          originalLootTables,
+          originalLocations
         );
       }
     }
@@ -94,7 +97,11 @@ class Mod implements IPreAkiLoadMod {
             }
             if (originalLootTables == null) {
               // the reason we also store original loot tables only once is so that when calculating new odds, we don't have to do funky math to undo previous increases
-              originalLootTables = tables.loot?.staticLoot;
+              originalLootTables = tables.loot;
+            }
+            if (originalLocations == null) {
+              // the reason we also store original locations only once is so that when calculating new odds, we don't have to do funky math to undo previous increases
+              originalLocations = tables.locations;
             }
             handleStateChange(sessionId, false);
 

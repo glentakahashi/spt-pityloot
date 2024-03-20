@@ -1,4 +1,8 @@
-import { IStaticLootDetails } from "@spt-aki/models/eft/common/tables/ILootBase";
+import {
+  ILootBase,
+  IStaticAmmoDetails,
+  IStaticLootDetails,
+} from "@spt-aki/models/eft/common/tables/ILootBase";
 import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
 import {
   maxDropRateMultiplier,
@@ -10,6 +14,8 @@ import {
   debug,
 } from "../config/config.json";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ILocations } from "@spt-aki/models/spt/server/ILocations";
+import { ILooseLoot } from "@spt-aki/models/eft/common/ILooseLoot";
 
 type BaseItemRequirement = {
   itemId: string;
@@ -44,8 +50,9 @@ export class LootProbabilityManager {
     profile: IAkiProfile,
     questItemRequirements: ItemRequirement[],
     hideoutItemRequirements: ItemRequirement[],
-    loot: Record<string, IStaticLootDetails>
-  ) {
+    loot: ILootBase,
+    locations: ILocations
+  ): [ILootBase, ILocations] {
     // For every item, track how many total in our inventory we've found in raid or not
     const itemsInInventory: Record<
       string,
@@ -207,45 +214,117 @@ export class LootProbabilityManager {
         );
       });
 
-    // Now that we have the drop rate multipliers, calculate new loot tables
-    const newLootTables: Record<string, IStaticLootDetails> = {};
-    for (const [containerId, container] of Object.entries(loot)) {
-      const newLootDistribution = container.itemDistribution.map((dist) => {
-        const maybeMult = itemDropRateMultipliers[dist.tpl];
-        let newRelativeProbability = dist.relativeProbability;
-        if (maybeMult) {
-          if (dropRateIncreaseType === "raid") {
-            newRelativeProbability *= Math.min(
-              maxDropRateMultiplier,
-              maybeMult.raidBasedDropRateMultiplier
-            );
-          } else {
-            newRelativeProbability *= Math.min(
-              maxDropRateMultiplier,
-              maybeMult.timeBasedDropRateMultiplier
-            );
-          }
-          // Adjust for if its a key
-          if (maybeMult.isKey) {
-            newRelativeProbability *= keysAdditionalMultiplier;
-          }
-          newRelativeProbability = Math.round(newRelativeProbability);
-          debug &&
-            this.logger.info(
-              `Updated drop rate for item ${dist.tpl} in container ${containerId} from ${dist.relativeProbability} to ${newRelativeProbability}`
-            );
+    const getNewLootProbability = (
+      tpl: string,
+      relativeProbability: number,
+      loc: string
+    ) => {
+      const maybeMult = itemDropRateMultipliers[tpl];
+      let newRelativeProbability = relativeProbability;
+      if (maybeMult) {
+        if (dropRateIncreaseType === "raid") {
+          newRelativeProbability *= Math.min(
+            maxDropRateMultiplier,
+            maybeMult.raidBasedDropRateMultiplier
+          );
+        } else {
+          newRelativeProbability *= Math.min(
+            maxDropRateMultiplier,
+            maybeMult.timeBasedDropRateMultiplier
+          );
         }
+        // Adjust for if its a key
+        if (maybeMult.isKey) {
+          newRelativeProbability *= keysAdditionalMultiplier;
+        }
+        newRelativeProbability = Math.round(newRelativeProbability);
+        debug &&
+          this.logger.info(
+            `Updated drop rate for item ${tpl} in ${loc} from ${relativeProbability} to ${newRelativeProbability}`
+          );
+      }
+      return newRelativeProbability;
+    };
+
+    // Now that we have the drop rate multipliers, calculate new loot tables
+    const newStaticAmmo: Record<string, IStaticAmmoDetails[]> = {};
+    for (const [containerId, container] of Object.entries(loot.staticAmmo)) {
+      const newAmmoDistribution: IStaticAmmoDetails[] = container.map(
+        (dist) => {
+          return {
+            tpl: dist.tpl,
+            relativeProbability: getNewLootProbability(
+              dist.tpl,
+              dist.relativeProbability,
+              `ammo ${containerId}`
+            ),
+          };
+        }
+      );
+
+      newStaticAmmo[containerId] = newAmmoDistribution;
+    }
+    const newStaticLoot: Record<string, IStaticLootDetails> = {};
+    for (const [containerId, container] of Object.entries(loot.staticLoot)) {
+      const newLootDistribution = container.itemDistribution.map((dist) => {
         return {
           tpl: dist.tpl,
-          relativeProbability: newRelativeProbability,
+          relativeProbability: getNewLootProbability(
+            dist.tpl,
+            dist.relativeProbability,
+            `container ${containerId}`
+          ),
         };
       });
+
       const newContainer: IStaticLootDetails = {
         itemcountDistribution: container.itemcountDistribution,
         itemDistribution: newLootDistribution,
       };
-      newLootTables[containerId] = newContainer;
+      newStaticLoot[containerId] = newContainer;
     }
-    return newLootTables;
+    const newLootTables: ILootBase = {
+      staticAmmo: newStaticAmmo,
+      staticContainers: loot.staticContainers,
+      staticLoot: newStaticLoot,
+    };
+
+    const newLocations: ILocations = {};
+    for (const [locationId, location] of Object.entries(locations)) {
+      if (!location || !("looseLoot" in location)) {
+        newLocations[locationId as keyof ILocations] = location;
+      } else {
+        const newLooseLoot: ILooseLoot = {
+          ...(location.looseLoot as ILooseLoot),
+        };
+        newLooseLoot.spawnpoints = newLooseLoot.spawnpoints.map(
+          (spawnPoint) => {
+            return {
+              ...spawnPoint,
+              itemDistribution: spawnPoint.itemDistribution.map(
+                (itemDistribution) => {
+                  const tpl = itemDistribution.composedKey.key;
+                  return {
+                    composedKey: {
+                      key: tpl,
+                    },
+                    relativeProbability: getNewLootProbability(
+                      tpl,
+                      itemDistribution.relativeProbability,
+                      `spawnpoint ${spawnPoint.locationId}`
+                    ),
+                  };
+                }
+              ),
+            };
+          }
+        );
+        newLocations[locationId as keyof ILocations] = {
+          ...location,
+          looseLoot: newLooseLoot,
+        };
+      }
+    }
+    return [newLootTables, newLocations];
   }
 }
