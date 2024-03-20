@@ -1,6 +1,7 @@
 {
   "enabled": true,
   "debug": true,
+  "trace": false,
   "appliesToQuests": true,
   "appliesToHideout": true,
   "increasesStack": true,

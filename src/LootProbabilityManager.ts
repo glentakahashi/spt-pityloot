@@ -1,6 +1,5 @@
 import {
   ILootBase,
-  IStaticAmmoDetails,
   IStaticLootDetails,
 } from "@spt-aki/models/eft/common/tables/ILootBase";
 import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
@@ -12,6 +11,7 @@ import {
   keysAdditionalMultiplier,
   increasesStack,
   debug,
+  trace,
 } from "../config/config.json";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 import { ILocations } from "@spt-aki/models/spt/server/ILocations";
@@ -238,7 +238,7 @@ export class LootProbabilityManager {
           newRelativeProbability *= keysAdditionalMultiplier;
         }
         newRelativeProbability = Math.round(newRelativeProbability);
-        debug &&
+        trace &&
           this.logger.info(
             `Updated drop rate for item ${tpl} in ${loc} from ${relativeProbability} to ${newRelativeProbability}`
           );
@@ -247,23 +247,6 @@ export class LootProbabilityManager {
     };
 
     // Now that we have the drop rate multipliers, calculate new loot tables
-    const newStaticAmmo: Record<string, IStaticAmmoDetails[]> = {};
-    for (const [containerId, container] of Object.entries(loot.staticAmmo)) {
-      const newAmmoDistribution: IStaticAmmoDetails[] = container.map(
-        (dist) => {
-          return {
-            tpl: dist.tpl,
-            relativeProbability: getNewLootProbability(
-              dist.tpl,
-              dist.relativeProbability,
-              `ammo ${containerId}`
-            ),
-          };
-        }
-      );
-
-      newStaticAmmo[containerId] = newAmmoDistribution;
-    }
     const newStaticLoot: Record<string, IStaticLootDetails> = {};
     for (const [containerId, container] of Object.entries(loot.staticLoot)) {
       const newLootDistribution = container.itemDistribution.map((dist) => {
@@ -284,8 +267,7 @@ export class LootProbabilityManager {
       newStaticLoot[containerId] = newContainer;
     }
     const newLootTables: ILootBase = {
-      staticAmmo: newStaticAmmo,
-      staticContainers: loot.staticContainers,
+      ...loot,
       staticLoot: newStaticLoot,
     };
 
@@ -295,23 +277,31 @@ export class LootProbabilityManager {
         newLocations[locationId as keyof ILocations] = location;
       } else {
         const newLooseLoot: ILooseLoot = {
-          ...(location.looseLoot as ILooseLoot),
+          ...location.looseLoot,
         };
         newLooseLoot.spawnpoints = newLooseLoot.spawnpoints.map(
           (spawnPoint) => {
+            const idToTpl: Record<string, string> = {};
+            spawnPoint.template.Items.forEach((i) => {
+              idToTpl[i._id] = i._tpl;
+            });
             return {
               ...spawnPoint,
               itemDistribution: spawnPoint.itemDistribution.map(
                 (itemDistribution) => {
-                  const tpl = itemDistribution.composedKey.key;
+                  const _id = itemDistribution.composedKey.key;
+                  const tpl = idToTpl[_id];
+                  if (!tpl) {
+                    return itemDistribution;
+                  }
                   return {
                     composedKey: {
-                      key: tpl,
+                      key: _id,
                     },
                     relativeProbability: getNewLootProbability(
                       tpl,
                       itemDistribution.relativeProbability,
-                      `spawnpoint ${spawnPoint.locationId}`
+                      `spawnpoint ${spawnPoint.locationId} (${spawnPoint.template.Id})`
                     ),
                   };
                 }
