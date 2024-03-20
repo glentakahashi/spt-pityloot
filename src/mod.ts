@@ -12,6 +12,7 @@ import {
   includeScavRaids,
   appliesToHideout,
   appliesToQuests,
+  debug,
 } from "../config/config.json";
 import { IItemEventRouterRequest } from "@spt-aki/models/eft/itemEvent/IItemEventRouterRequest";
 import { HideoutEventActions } from "@spt-aki/models/enums/HideoutEventActions";
@@ -45,6 +46,11 @@ class Mod implements IPreAkiLoadMod {
 
     function handleStateChange(sessionId: string, incrementRaidCount: boolean) {
       const fullProfile = profileHelper.getFullProfile(sessionId);
+      if (!fullProfile.characters.pmc || !fullProfile.characters.pmc.Hideout) {
+        debug &&
+          logger.info(`Profile not valid yet, skipping initialization for now`);
+        return;
+      }
       const tables = databaseServer.getTables();
 
       updatePityTracker(
