@@ -3,6 +3,7 @@
   "debug": true,
   "trace": false,
   "appliesToQuests": true,
+  "includeGunsmith": true,
   "appliesToHideout": true,
   "increasesStack": true,
   "includeScavRaids": true,

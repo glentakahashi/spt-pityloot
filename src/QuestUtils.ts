@@ -3,12 +3,20 @@ import { IQuestStatus } from "@spt-aki/models/eft/common/tables/IBotBase";
 import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
 import { loadPityTrackerDatabase } from "./DatabaseUtils";
 import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
-import { includeKeys } from "../config/config.json";
+import { includeKeys, includeGunsmith } from "../config/config.json";
 import questKeys from "../config/questKeys.json";
+import gunsmith from "../config/gunsmith.json";
 import { ItemRequirement } from "./LootProbabilityManager";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 
 type AugmentedQuestStatus = IQuestStatus & { raidsSinceStarted: number };
+
+function isKnownQuest<T extends typeof questKeys | typeof gunsmith>(
+  questId: string | symbol | number,
+  obj: T
+): questId is keyof T {
+  return questId in obj;
+}
 
 export class QuestUtils {
   constructor(private logger: ILogger) {}
@@ -84,14 +92,25 @@ export class QuestUtils {
         },
       ];
     });
-    if (includeKeys) {
-      // TODO: better typing
-      const keysForQuest = questKeys[quest._id as keyof typeof questKeys] ?? [];
+    if (includeKeys && isKnownQuest(quest._id, questKeys)) {
+      const keysForQuest = questKeys[quest._id];
       for (const keyForQuest of keysForQuest) {
         conditions.push({
           type: "questKey",
           amountRequired: 1,
           itemId: keyForQuest,
+          raidsSinceStarted: questStatus.raidsSinceStarted,
+          secondsSinceStarted,
+        });
+      }
+    }
+    if (includeGunsmith && isKnownQuest(quest._id, gunsmith)) {
+      const gunsmithItems = gunsmith[quest._id] ?? [];
+      for (const gunsmithItem of gunsmithItems) {
+        conditions.push({
+          type: "gunsmith",
+          amountRequired: 1,
+          itemId: gunsmithItem,
           raidsSinceStarted: questStatus.raidsSinceStarted,
           secondsSinceStarted,
         });

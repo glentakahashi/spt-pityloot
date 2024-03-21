@@ -16,6 +16,7 @@ import {
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 import { ILocations } from "@spt-aki/models/spt/server/ILocations";
 import { ILooseLoot } from "@spt-aki/models/eft/common/ILooseLoot";
+import { assertNever } from "./helpers";
 
 type BaseItemRequirement = {
   itemId: string;
@@ -34,6 +35,10 @@ type QuestKeyRequirement = {
   type: "questKey";
 } & BaseItemRequirement;
 
+type GunsmithRequirement = {
+  type: "gunsmith";
+} & BaseItemRequirement;
+
 export type HideoutItemRequirement = {
   type: "hideout";
 } & BaseItemRequirement;
@@ -41,6 +46,7 @@ export type HideoutItemRequirement = {
 export type ItemRequirement =
   | QuestItemRequirement
   | QuestKeyRequirement
+  | GunsmithRequirement
   | HideoutItemRequirement;
 
 export class LootProbabilityManager {
@@ -158,8 +164,10 @@ export class LootProbabilityManager {
           numMoreNeeded,
           req.foundInRaid
         );
-      } else if (req.type === "hideout") {
+      } else if (req.type === "hideout" || req.type === "gunsmith") {
         return !checkIfHasEnoughAndRemove(itemCount, req.amountRequired, false);
+      } else {
+        assertNever(req);
       }
     });
 
