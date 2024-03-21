@@ -8,8 +8,8 @@
   "includeScavRaids": true,
   "includeKeys": true,
   "keysAdditionalMultiplier": 2.5,
-  "maxDropRateMultiplier": 10,
+  "maxDropRateMultiplier": 100,
   "dropRateIncreaseType": "raid",
-  "dropRateIncreasePerRaid": 0.2,
-  "dropRateIncreasePerHour": 0.05
+  "dropRateIncreasePerRaid": 0.5,
+  "dropRateIncreasePerHour": 0.15
 }
