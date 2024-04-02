@@ -24,6 +24,7 @@ import { QuestUtils } from "./QuestUtils";
 import { HideoutUtils } from "./HideoutUtils";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 import { ILocations } from "@spt-aki/models/spt/server/ILocations";
+import { IBots } from "./helpers";
 
 class Mod implements IPreAkiLoadMod {
   preAkiLoad(container: DependencyContainer): void {
@@ -43,6 +44,7 @@ class Mod implements IPreAkiLoadMod {
     let allQuests: Record<string, IQuest> | undefined;
     let originalLootTables: ILootBase | undefined;
     let originalLocations: ILocations | undefined;
+    let originalBots: IBots | undefined;
 
     maybeCreatePityTrackerDatabase();
 
@@ -64,21 +66,31 @@ class Mod implements IPreAkiLoadMod {
         incrementRaidCount
       );
 
-      if (allQuests && originalLootTables && originalLocations) {
-        [tables.loot, tables.locations] = pityLootManager.getUpdatedLootTables(
-          fullProfile,
-          appliesToQuests
-            ? questUtils.getInProgressQuestRequirements(fullProfile, allQuests)
-            : [],
-          appliesToHideout && tables.hideout
-            ? hideoutUtils.getHideoutRequirements(
-                tables.hideout.areas,
-                fullProfile
-              )
-            : [],
-          originalLootTables,
-          originalLocations
-        );
+      if (
+        allQuests &&
+        originalLootTables &&
+        originalLocations &&
+        originalBots
+      ) {
+        [tables.loot, tables.locations, tables.bots] =
+          pityLootManager.getUpdatedLootTables(
+            fullProfile,
+            appliesToQuests
+              ? questUtils.getInProgressQuestRequirements(
+                  fullProfile,
+                  allQuests
+                )
+              : [],
+            appliesToHideout && tables.hideout
+              ? hideoutUtils.getHideoutRequirements(
+                  tables.hideout.areas,
+                  fullProfile
+                )
+              : [],
+            originalLootTables,
+            originalLocations,
+            originalBots
+          );
       }
     }
 
@@ -95,13 +107,15 @@ class Mod implements IPreAkiLoadMod {
             if (allQuests == null) {
               allQuests = tables.templates?.quests;
             }
+            // the reason we also store original tables only once is so that when calculating new odds, we don't have to do funky math to undo previous increases
             if (originalLootTables == null) {
-              // the reason we also store original loot tables only once is so that when calculating new odds, we don't have to do funky math to undo previous increases
               originalLootTables = tables.loot;
             }
             if (originalLocations == null) {
-              // the reason we also store original locations only once is so that when calculating new odds, we don't have to do funky math to undo previous increases
               originalLocations = tables.locations;
+            }
+            if (originalBots == null) {
+              originalBots = tables.bots;
             }
             handleStateChange(sessionId, false);
 
