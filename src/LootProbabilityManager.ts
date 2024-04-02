@@ -167,7 +167,8 @@ export class LootProbabilityManager {
       if (req.type === "questKey") {
         return !checkIfHasEnoughAndRemove(itemCount, 1, false);
       } else if (req.type === "quest") {
-        const counter = profile.characters.pmc.BackendCounters[req.conditionId];
+        const counter =
+          profile.characters.pmc.TaskConditionCounters[req.conditionId];
         const conditionProgress = counter ? counter.value : 0;
         const numMoreNeeded = req.amountRequired - conditionProgress;
         return !checkIfHasEnoughAndRemove(

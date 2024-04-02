@@ -69,29 +69,30 @@ export class QuestUtils {
     const completedConditions = questStatus.completedConditions ?? [];
     const itemConditions = quest.conditions.AvailableForFinish.filter(
       (condition) =>
-        condition._parent === "HandoverItem" ||
-        condition._parent === "LeaveItemAtLocation"
+        condition.conditionType === "HandoverItem" ||
+        condition.conditionType === "LeaveItemAtLocation"
     );
     const missingItemConditions = itemConditions.filter(
-      (condition) => !completedConditions.includes(condition._props.id)
+      (condition) => !completedConditions.includes(condition.id)
     );
-    const conditions: ItemRequirement[] = missingItemConditions.flatMap((c) => {
-      const { target, onlyFoundInRaid, value, id } = c._props;
-      if (!target || !target[0] || !value) {
-        return [];
+    const conditions: ItemRequirement[] = missingItemConditions.flatMap(
+      ({ target, onlyFoundInRaid, value, id }) => {
+        if (!target || !target[0] || !value) {
+          return [];
+        }
+        return [
+          {
+            type: "quest",
+            conditionId: id,
+            itemId: target[0],
+            foundInRaid: onlyFoundInRaid ?? false,
+            amountRequired: typeof value === "string" ? parseInt(value) : value,
+            secondsSinceStarted,
+            raidsSinceStarted: questStatus.raidsSinceStarted,
+          },
+        ];
       }
-      return [
-        {
-          type: "quest",
-          conditionId: id,
-          itemId: target[0],
-          foundInRaid: onlyFoundInRaid ?? false,
-          amountRequired: typeof value === "string" ? parseInt(value) : value,
-          secondsSinceStarted,
-          raidsSinceStarted: questStatus.raidsSinceStarted,
-        },
-      ];
-    });
+    );
     if (includeKeys && isKnownQuest(quest._id, questKeys)) {
       const keysForQuest = questKeys[quest._id];
       for (const keyForQuest of keysForQuest) {
