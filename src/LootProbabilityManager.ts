@@ -18,6 +18,13 @@ import { ILocations } from "@spt-aki/models/spt/server/ILocations";
 import { ILooseLoot } from "@spt-aki/models/eft/common/ILooseLoot";
 import { assertNever } from "./helpers";
 
+// Money
+const excludedItems = [
+  "569668774bdc2da2298b4568",
+  "5449016a4bdc2d6f028b456f",
+  "5696686a4bdc2da3298b456a",
+];
+
 type BaseItemRequirement = {
   itemId: string;
   amountRequired: number;
@@ -148,6 +155,10 @@ export class LootProbabilityManager {
     // Filter the requirements based on the ordering, removing them from the list and decrementing inventory counts if they meet the requirements
     // Return `false` if we /can/ complete the quest, `true` if we can't and should apply pity conditions
     const incompleteItemRequirements = allItemRequirements.filter((req) => {
+      if (req.itemId in excludedItems) {
+        // Remove money requirements from loot tables
+        return false;
+      }
       const itemCount = itemsInInventory[req.itemId];
       if (!itemCount) {
         // If we don't have any of the time, its never possible to complete it

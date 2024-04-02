@@ -62,9 +62,10 @@ export class HideoutUtils {
     profile: IAkiProfile
   ): HideoutUpgradeInfo[] {
     const completedHideoutAreas = Object.fromEntries(
-      profile.characters.pmc.Hideout.Areas.filter((h) => !h.constructing).map(
-        (h) => [h.type, h.level]
-      )
+      profile.characters.pmc.Hideout.Areas.map((h) => [
+        h.type,
+        h.constructing ? h.level + 1 : h.level,
+      ])
     );
     const traders = profile.characters.pmc.TradersInfo;
     const skillLevels = Object.fromEntries(
