@@ -16,7 +16,12 @@ import {
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 import { ILocations } from "@spt-aki/models/spt/server/ILocations";
 import { ILooseLoot } from "@spt-aki/models/eft/common/ILooseLoot";
-import { assertNever } from "./helpers";
+import { IBots, assertNever } from "./helpers";
+import {
+  Equipment,
+  IBotType,
+  Items,
+} from "@spt-aki/models/eft/common/tables/IBotType";
 
 // Money
 const excludedItems = [
@@ -24,6 +29,8 @@ const excludedItems = [
   "5449016a4bdc2d6f028b456f",
   "5696686a4bdc2da3298b456a",
 ];
+
+const botTypesToUpdate = ["assault"];
 
 type BaseItemRequirement = {
   itemId: string;
@@ -64,8 +71,9 @@ export class LootProbabilityManager {
     questItemRequirements: ItemRequirement[],
     hideoutItemRequirements: ItemRequirement[],
     loot: ILootBase,
-    locations: ILocations
-  ): [ILootBase, ILocations] {
+    locations: ILocations,
+    bots: IBots
+  ): [ILootBase, ILocations, IBots] {
     // For every item, track how many total in our inventory we've found in raid or not
     const itemsInInventory: Record<
       string,
@@ -334,6 +342,56 @@ export class LootProbabilityManager {
         };
       }
     }
-    return [newLootTables, newLocations];
+    const newBots: IBots = {
+      ...bots,
+    };
+    for (const [botType, botValue] of Object.entries(bots.types)) {
+      if (botType in botTypesToUpdate) {
+        const newBot: IBotType = {
+          ...botValue,
+          inventory: {
+            ...botValue.inventory,
+            equipment: Object.fromEntries(
+              Object.entries(botValue.inventory.equipment).map(
+                ([k, v]: [string, Record<string, number>]) => [
+                  k,
+                  Object.fromEntries(
+                    Object.entries(v).map(([itemId, chance]) => [
+                      itemId,
+                      getNewLootProbability(
+                        itemId,
+                        chance,
+                        `bot ${botType} equipment ${k}`
+                      ),
+                    ])
+                  ),
+                ]
+              )
+              // TODO: fix types
+            ) as unknown as Equipment,
+            items: Object.fromEntries(
+              Object.entries(botValue.inventory.items).map(
+                ([k, v]: [string, Record<string, number>]) => [
+                  k,
+                  Object.fromEntries(
+                    Object.entries(v).map(([itemId, chance]) => [
+                      itemId,
+                      getNewLootProbability(
+                        itemId,
+                        chance,
+                        `bot ${botType} items ${k}`
+                      ),
+                    ])
+                  ),
+                ]
+              )
+              // TODO: fix types
+            ) as unknown as Items,
+          },
+        };
+        newBots.types[botType] = newBot;
+      }
+    }
+    return [newLootTables, newLocations, newBots];
   }
 }
