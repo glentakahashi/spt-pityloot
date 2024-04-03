@@ -77,20 +77,24 @@ export class QuestUtils {
     );
     const conditions: ItemRequirement[] = missingItemConditions.flatMap(
       ({ target, onlyFoundInRaid, value, id }) => {
-        if (!target || !target[0] || !value) {
+        if (!target || !value) {
           return [];
         }
-        return [
-          {
-            type: "quest",
-            conditionId: id,
-            itemId: target[0],
-            foundInRaid: onlyFoundInRaid ?? false,
-            amountRequired: typeof value === "string" ? parseInt(value) : value,
-            secondsSinceStarted,
-            raidsSinceStarted: questStatus.raidsSinceStarted,
-          },
-        ];
+        let targets;
+        if (Array.isArray(target)) {
+          targets = target;
+        } else {
+          targets = [target];
+        }
+        return targets.map((itemId) => ({
+          type: "quest",
+          conditionId: id,
+          itemId: itemId,
+          foundInRaid: onlyFoundInRaid ?? false,
+          amountRequired: typeof value === "string" ? parseInt(value) : value,
+          secondsSinceStarted,
+          raidsSinceStarted: questStatus.raidsSinceStarted,
+        }));
       }
     );
     if (includeKeys && isKnownQuest(quest._id, questKeys)) {
