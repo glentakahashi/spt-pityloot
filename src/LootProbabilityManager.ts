@@ -159,7 +159,7 @@ export class LootProbabilityManager {
     // Filter the requirements based on the ordering, removing them from the list and decrementing inventory counts if they meet the requirements
     // Return `false` if we /can/ complete the quest, `true` if we can't and should apply pity conditions
     const incompleteItemRequirements = allItemRequirements.filter((req) => {
-      if (req.itemId in excludedItems) {
+      if (excludedItems.includes(req.itemId)) {
         // Remove money requirements from loot tables
         return false;
       }
