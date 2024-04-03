@@ -20,7 +20,6 @@ import { IBots, assertNever } from "./helpers";
 import {
   Equipment,
   IBotType,
-  Items,
 } from "@spt-aki/models/eft/common/tables/IBotType";
 
 // Money
@@ -30,7 +29,7 @@ const excludedItems = [
   "5696686a4bdc2da3298b456a",
 ];
 
-const botTypesToUpdate = ["assault"];
+const botTypesToIgnore = ["bear", "usec", "gifter"];
 
 type BaseItemRequirement = {
   itemId: string;
@@ -66,14 +65,11 @@ export type ItemRequirement =
 export class LootProbabilityManager {
   constructor(private logger: ILogger) {}
 
-  getUpdatedLootTables(
+  createLootProbabilityUpdater(
     profile: IAkiProfile,
     questItemRequirements: ItemRequirement[],
-    hideoutItemRequirements: ItemRequirement[],
-    loot: ILootBase,
-    locations: ILocations,
-    bots: IBots
-  ): [ILootBase, ILocations, IBots] {
+    hideoutItemRequirements: ItemRequirement[]
+  ) {
     // For every item, track how many total in our inventory we've found in raid or not
     const itemsInInventory: Record<
       string,
@@ -241,11 +237,7 @@ export class LootProbabilityManager {
         );
       });
 
-    const getNewLootProbability = (
-      tpl: string,
-      relativeProbability: number,
-      loc: string
-    ) => {
+    return (tpl: string, relativeProbability: number, loc: string) => {
       const maybeMult = itemDropRateMultipliers[tpl];
       let newRelativeProbability = relativeProbability;
       if (maybeMult) {
@@ -272,8 +264,17 @@ export class LootProbabilityManager {
       }
       return newRelativeProbability;
     };
+  }
 
-    // Now that we have the drop rate multipliers, calculate new loot tables
+  getUpdatedLocationLoot(
+    getNewLootProbability: (
+      tpl: string,
+      relativeProbability: number,
+      loc: string
+    ) => number,
+    loot: ILootBase,
+    locations: ILocations
+  ): [ILootBase, ILocations] {
     const newStaticLoot: Record<string, IStaticLootDetails> = {};
     for (const [containerId, container] of Object.entries(loot.staticLoot)) {
       const newLootDistribution = container.itemDistribution.map((dist) => {
@@ -342,26 +343,40 @@ export class LootProbabilityManager {
         };
       }
     }
+    return [newLootTables, newLocations];
+  }
+
+  getUpdatedBotTables(
+    getNewLootProbability: (
+      tpl: string,
+      relativeProbability: number,
+      loc: string
+    ) => number,
+    bots: IBots
+  ): IBots {
     const newBots: IBots = {
       ...bots,
     };
     for (const [botType, botValue] of Object.entries(bots.types)) {
-      if (botType in botTypesToUpdate) {
+      if (!botTypesToIgnore.includes(botType)) {
         const newBot: IBotType = {
           ...botValue,
           inventory: {
             ...botValue.inventory,
             equipment: Object.fromEntries(
               Object.entries(botValue.inventory.equipment).map(
-                ([k, v]: [string, Record<string, number>]) => [
-                  k,
+                ([equipmentType, probabilities]: [
+                  string,
+                  Record<string, number>
+                ]) => [
+                  equipmentType,
                   Object.fromEntries(
-                    Object.entries(v).map(([itemId, chance]) => [
+                    Object.entries(probabilities).map(([itemId, chance]) => [
                       itemId,
                       getNewLootProbability(
                         itemId,
                         chance,
-                        `bot ${botType} equipment ${k}`
+                        `bot ${botType} equipment ${equipmentType}`
                       ),
                     ])
                   ),
@@ -369,29 +384,11 @@ export class LootProbabilityManager {
               )
               // TODO: fix types
             ) as unknown as Equipment,
-            items: Object.fromEntries(
-              Object.entries(botValue.inventory.items).map(
-                ([k, v]: [string, Record<string, number>]) => [
-                  k,
-                  Object.fromEntries(
-                    Object.entries(v).map(([itemId, chance]) => [
-                      itemId,
-                      getNewLootProbability(
-                        itemId,
-                        chance,
-                        `bot ${botType} items ${k}`
-                      ),
-                    ])
-                  ),
-                ]
-              )
-              // TODO: fix types
-            ) as unknown as Items,
           },
         };
         newBots.types[botType] = newBot;
       }
     }
-    return [newLootTables, newLocations, newBots];
+    return newBots;
   }
 }
