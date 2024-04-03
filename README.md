@@ -33,4 +33,4 @@ Config options are explained as below
 
 ## TODOS
 
-- Implement gunsmith items maybe
+- Maybe increase scav loot tables too? For things like guns/armor?
