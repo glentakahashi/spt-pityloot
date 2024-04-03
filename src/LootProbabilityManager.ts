@@ -20,6 +20,7 @@ import { IBots, assertNever } from "./helpers";
 import {
   Equipment,
   IBotType,
+  Items,
 } from "@spt-aki/models/eft/common/tables/IBotType";
 
 // Money
@@ -159,7 +160,7 @@ export class LootProbabilityManager {
     // Filter the requirements based on the ordering, removing them from the list and decrementing inventory counts if they meet the requirements
     // Return `false` if we /can/ complete the quest, `true` if we can't and should apply pity conditions
     const incompleteItemRequirements = allItemRequirements.filter((req) => {
-      if (req.itemId in excludedItems) {
+      if (excludedItems.includes(req.itemId)) {
         // Remove money requirements from loot tables
         return false;
       }
@@ -385,6 +386,27 @@ export class LootProbabilityManager {
               )
               // TODO: fix types
             ) as unknown as Equipment,
+            items: Object.fromEntries(
+              Object.entries(botValue.inventory.items).map(
+                ([inventorySlot, probabilities]: [
+                  string,
+                  Record<string, number>
+                ]) => [
+                  inventorySlot,
+                  Object.fromEntries(
+                    Object.entries(probabilities).map(([itemId, chance]) => [
+                      itemId,
+                      getNewLootProbability(
+                        itemId,
+                        chance,
+                        `bot ${botType} items ${inventorySlot}`
+                      ),
+                    ])
+                  ),
+                ]
+              )
+              // TODO: fix types
+            ) as unknown as Items,
           },
         };
         newBots.types[botType] = newBot;
