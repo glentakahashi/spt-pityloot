@@ -16,6 +16,8 @@ import {
 } from "../config/config.json";
 import { IItemEventRouterRequest } from "@spt-aki/models/eft/itemEvent/IItemEventRouterRequest";
 import { HideoutEventActions } from "@spt-aki/models/enums/HideoutEventActions";
+import type { PreAkiModLoader } from "@spt-aki/loaders/PreAkiModLoader";
+import type { LocationController } from "@spt-aki/controllers/LocationController";
 import {
   maybeCreatePityTrackerDatabase,
   updatePityTracker,
@@ -25,6 +27,8 @@ import { HideoutUtils } from "./HideoutUtils";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 import { ILocations } from "@spt-aki/models/spt/server/ILocations";
 import { IBots } from "./helpers";
+import { IGetLocationRequestData } from "@spt-aki/models/eft/location/IGetLocationRequestData";
+import { ILocationBase } from "@spt-aki/models/eft/common/ILocationBase";
 
 class Mod implements IPreAkiLoadMod {
   preAkiLoad(container: DependencyContainer): void {
@@ -37,6 +41,8 @@ class Mod implements IPreAkiLoadMod {
     );
     const databaseServer = container.resolve<DatabaseServer>("DatabaseServer");
     const logger = container.resolve<ILogger>("WinstonLogger");
+    const locationController =
+      container.resolve<LocationController>("LocationController");
     const hideoutUtils = new HideoutUtils(logger);
     const questUtils = new QuestUtils(logger);
     const pityLootManager = new LootProbabilityManager(logger);
@@ -45,10 +51,85 @@ class Mod implements IPreAkiLoadMod {
     let originalLootTables: ILootBase | undefined;
     let originalLocations: ILocations | undefined;
     let originalBots: IBots | undefined;
+    let algorithmicLevelingProgressionCompatibility = false;
+
+    const preAkiModLoader =
+      container.resolve<PreAkiModLoader>("PreAkiModLoader");
+    if (
+      preAkiModLoader
+        .getImportedModsNames()
+        .some((mod) => mod.includes("AlgorithmicLevelProgression"))
+    ) {
+      logger.info(
+        "Algorithmic Level Progression detected, updating bot spawns"
+      );
+      algorithmicLevelingProgressionCompatibility = true;
+    }
+
+    container.afterResolution(
+      "LocationController",
+      (_t, result: LocationController | LocationController[]) => {
+        for (const controller of Array.isArray(result) ? result : [result]) {
+          controller.get = (
+            sessionId: string,
+            request: IGetLocationRequestData
+          ): ILocationBase => {
+            const start = performance.now();
+
+            const fullProfile = profileHelper.getFullProfile(sessionId);
+            if (
+              !fullProfile.characters.pmc ||
+              !fullProfile.characters.pmc.Hideout
+            ) {
+              logger.warning(
+                `Profile not valid yet, skipping initialization for now`
+              );
+            } else {
+              const tables = databaseServer.getTables();
+
+              if (allQuests) {
+                const getNewLootProbability =
+                  pityLootManager.createLootProbabilityUpdater(
+                    fullProfile,
+                    appliesToQuests
+                      ? questUtils.getInProgressQuestRequirements(
+                          fullProfile,
+                          allQuests
+                        )
+                      : [],
+                    appliesToHideout && tables.hideout
+                      ? hideoutUtils.getHideoutRequirements(
+                          tables.hideout.areas,
+                          fullProfile
+                        )
+                      : []
+                  );
+
+                if (originalLootTables && originalLocations) {
+                  [tables.loot, tables.locations] =
+                    pityLootManager.getUpdatedLocationLoot(
+                      getNewLootProbability,
+                      originalLootTables,
+                      originalLocations
+                    );
+                }
+                const end = performance.now();
+                debug &&
+                  logger.info(
+                    `Pity loot location updates took: ${end - start} ms`
+                  );
+              }
+            }
+            return locationController.get(sessionId, request);
+          };
+        }
+      },
+      { frequency: "Always" }
+    );
 
     maybeCreatePityTrackerDatabase();
 
-    function handleStateChange(sessionId: string, incrementRaidCount: boolean) {
+    function handlePityChange(sessionId: string, incrementRaidCount: boolean) {
       const fullProfile = profileHelper.getFullProfile(sessionId);
       if (!fullProfile.characters.pmc || !fullProfile.characters.pmc.Hideout) {
         debug &&
@@ -65,33 +146,6 @@ class Mod implements IPreAkiLoadMod {
         ),
         incrementRaidCount
       );
-
-      if (
-        allQuests &&
-        originalLootTables &&
-        originalLocations &&
-        originalBots
-      ) {
-        [tables.loot, tables.locations, tables.bots] =
-          pityLootManager.getUpdatedLootTables(
-            fullProfile,
-            appliesToQuests
-              ? questUtils.getInProgressQuestRequirements(
-                  fullProfile,
-                  allQuests
-                )
-              : [],
-            appliesToHideout && tables.hideout
-              ? hideoutUtils.getHideoutRequirements(
-                  tables.hideout.areas,
-                  fullProfile
-                )
-              : [],
-            originalLootTables,
-            originalLocations,
-            originalBots
-          );
-      }
     }
 
     staticRouterModService.registerStaticRouter(
@@ -117,7 +171,7 @@ class Mod implements IPreAkiLoadMod {
             if (originalBots == null) {
               originalBots = tables.bots;
             }
-            handleStateChange(sessionId, false);
+            handlePityChange(sessionId, false);
 
             return output;
           },
@@ -132,10 +186,7 @@ class Mod implements IPreAkiLoadMod {
         {
           url: "/raid/profile/save",
           action: (_url, info: ISaveProgressRequestData, sessionId, output) => {
-            handleStateChange(
-              sessionId,
-              !info.isPlayerScav || includeScavRaids
-            );
+            handlePityChange(sessionId, !info.isPlayerScav || includeScavRaids);
             return output;
           },
         },
@@ -164,7 +215,61 @@ class Mod implements IPreAkiLoadMod {
             if (!pityStatusChanged) {
               return output;
             }
-            handleStateChange(sessionId, false);
+            handlePityChange(sessionId, false);
+            return output;
+          },
+        },
+      ],
+      "aki"
+    );
+
+    staticRouterModService.registerStaticRouter(
+      "PityLootPreRaidHooks",
+      [
+        {
+          url: "/client/raid/configuration",
+          action: (_url, _info, sessionId, output) => {
+            const start = performance.now();
+
+            const fullProfile = profileHelper.getFullProfile(sessionId);
+            if (
+              !fullProfile.characters.pmc ||
+              !fullProfile.characters.pmc.Hideout
+            ) {
+              logger.warning(
+                `Profile not valid yet, skipping initialization for now`
+              );
+            } else {
+              const tables = databaseServer.getTables();
+
+              if (allQuests && originalBots && tables.bots) {
+                const getNewLootProbability =
+                  pityLootManager.createLootProbabilityUpdater(
+                    fullProfile,
+                    appliesToQuests
+                      ? questUtils.getInProgressQuestRequirements(
+                          fullProfile,
+                          allQuests
+                        )
+                      : [],
+                    appliesToHideout && tables.hideout
+                      ? hideoutUtils.getHideoutRequirements(
+                          tables.hideout.areas,
+                          fullProfile
+                        )
+                      : []
+                  );
+                tables.bots = pityLootManager.getUpdatedBotTables(
+                  getNewLootProbability,
+                  algorithmicLevelingProgressionCompatibility
+                    ? tables.bots
+                    : originalBots
+                );
+              }
+              const end = performance.now();
+              debug &&
+                logger.info(`Pity loot bot updates took: ${end - start} ms`);
+            }
             return output;
           },
         },
