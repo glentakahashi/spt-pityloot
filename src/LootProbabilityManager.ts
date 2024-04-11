@@ -31,13 +31,14 @@ const excludedItems = [
 ];
 
 const GUNSMITH_CONTAINERS = [
-  "5909d5ef86f77467974efbd8", // weapon box
-  "5909d76c86f77471e53d2adf", // weapon box
-  "5909d7cf86f77470ee57d75a", // weapon box
-  "5909d89086f77472591234a0", // weapon box
+  "5909d5ef86f77467974efbd8", // Weapon box
+  "5909d76c86f77471e53d2adf", // Weapon box
+  "5909d7cf86f77470ee57d75a", // Weapon box
+  "5909d89086f77472591234a0", // Weapon box
+  "578f87ad245977356274f2cc", // Wooden crate
 ];
 const QUEST_KEY_CONTAINERS = [
-  "578f8778245977358849a9b5", //jacket
+  "578f8778245977358849a9b5", // Jacket
 ];
 
 const botTypesToIgnore = ["bear", "usec", "gifter"];
