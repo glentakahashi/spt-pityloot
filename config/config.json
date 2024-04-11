@@ -11,6 +11,6 @@
   "keysAdditionalMultiplier": 2.5,
   "maxDropRateMultiplier": 100,
   "dropRateIncreaseType": "raid",
-  "dropRateIncreasePerRaid": 0.5,
-  "dropRateIncreasePerHour": 0.15
+  "dropRateIncreasePerRaid": 0.25,
+  "dropRateIncreasePerHour": 0.1
 }

@@ -88,8 +88,8 @@ class Mod implements IPreAkiLoadMod {
               const tables = databaseServer.getTables();
 
               if (allQuests) {
-                const getNewLootProbability =
-                  pityLootManager.createLootProbabilityUpdater(
+                const incompleteItemRequirements =
+                  pityLootManager.getIncompleteRequirements(
                     fullProfile,
                     appliesToQuests
                       ? questUtils.getInProgressQuestRequirements(
@@ -104,13 +104,18 @@ class Mod implements IPreAkiLoadMod {
                         )
                       : []
                   );
+                const getNewLootProbability =
+                  pityLootManager.createLootProbabilityUpdater(
+                    incompleteItemRequirements
+                  );
 
                 if (originalLootTables && originalLocations) {
                   [tables.loot, tables.locations] =
                     pityLootManager.getUpdatedLocationLoot(
                       getNewLootProbability,
                       originalLootTables,
-                      originalLocations
+                      originalLocations,
+                      incompleteItemRequirements
                     );
                 }
                 const end = performance.now();
@@ -243,8 +248,8 @@ class Mod implements IPreAkiLoadMod {
               const tables = databaseServer.getTables();
 
               if (allQuests && originalBots && tables.bots) {
-                const getNewLootProbability =
-                  pityLootManager.createLootProbabilityUpdater(
+                const incompleteItemRequirements =
+                  pityLootManager.getIncompleteRequirements(
                     fullProfile,
                     appliesToQuests
                       ? questUtils.getInProgressQuestRequirements(
@@ -258,6 +263,10 @@ class Mod implements IPreAkiLoadMod {
                           fullProfile
                         )
                       : []
+                  );
+                const getNewLootProbability =
+                  pityLootManager.createLootProbabilityUpdater(
+                    incompleteItemRequirements
                   );
                 tables.bots = pityLootManager.getUpdatedBotTables(
                   getNewLootProbability,

@@ -23,11 +23,21 @@ import {
   Items,
 } from "@spt-aki/models/eft/common/tables/IBotType";
 
-// Money
 const excludedItems = [
+  // Money
   "569668774bdc2da2298b4568",
   "5449016a4bdc2d6f028b456f",
   "5696686a4bdc2da3298b456a",
+];
+
+const GUNSMITH_CONTAINERS = [
+  "5909d5ef86f77467974efbd8", // weapon box
+  "5909d76c86f77471e53d2adf", // weapon box
+  "5909d7cf86f77470ee57d75a", // weapon box
+  "5909d89086f77472591234a0", // weapon box
+];
+const QUEST_KEY_CONTAINERS = [
+  "578f8778245977358849a9b5", //jacket
 ];
 
 const botTypesToIgnore = ["bear", "usec", "gifter"];
@@ -66,7 +76,7 @@ export type ItemRequirement =
 export class LootProbabilityManager {
   constructor(private logger: ILogger) {}
 
-  createLootProbabilityUpdater(
+  getIncompleteRequirements(
     profile: IAkiProfile,
     questItemRequirements: ItemRequirement[],
     hideoutItemRequirements: ItemRequirement[]
@@ -195,6 +205,10 @@ export class LootProbabilityManager {
         );
       });
 
+    return incompleteItemRequirements;
+  }
+
+  createLootProbabilityUpdater(incompleteItemRequirements: ItemRequirement[]) {
     // With the remaining conditions, calculate the max new drop rate by item type
     const itemDropRateMultipliers: Record<
       string,
@@ -275,10 +289,59 @@ export class LootProbabilityManager {
       loc: string
     ) => number,
     loot: ILootBase,
-    locations: ILocations
+    locations: ILocations,
+    incompleteItemRequirements: ItemRequirement[]
   ): [ILootBase, ILocations] {
+    const missingKeys = incompleteItemRequirements
+      .filter((c) => c.type === "questKey")
+      .map((c) => c.itemId);
+    const missingParts = incompleteItemRequirements
+      .filter((c) => c.type === "gunsmith")
+      .map((c) => c.itemId);
     const newStaticLoot: Record<string, IStaticLootDetails> = {};
     for (const [containerId, container] of Object.entries(loot.staticLoot)) {
+      if (
+        missingParts.length > 0 &&
+        GUNSMITH_CONTAINERS.includes(containerId)
+      ) {
+        const missingContainerParts = new Set(missingParts);
+        container.itemDistribution.forEach((dist) => {
+          if (missingContainerParts.has(dist.tpl)) {
+            missingContainerParts.delete(dist.tpl);
+          }
+        });
+        missingContainerParts.forEach((itemId) => {
+          debug &&
+            this.logger.info(
+              `Adding gunsmith item to loot tables. container: ${containerId}, itemId: ${itemId}, probability: ${1000}`
+            );
+          container.itemDistribution.push({
+            relativeProbability: 1000,
+            tpl: itemId,
+          });
+        });
+      }
+      if (
+        missingKeys.length > 0 &&
+        QUEST_KEY_CONTAINERS.includes(containerId)
+      ) {
+        const missingContainerKeys = new Set(missingKeys);
+        container.itemDistribution.forEach((dist) => {
+          if (missingContainerKeys.has(dist.tpl)) {
+            missingContainerKeys.delete(dist.tpl);
+          }
+        });
+        missingContainerKeys.forEach((itemId) => {
+          debug &&
+            this.logger.info(
+              `Adding quest key to loot tables. container: ${containerId}, itemId: ${itemId}, probability: ${1000}`
+            );
+          container.itemDistribution.push({
+            relativeProbability: 1000,
+            tpl: itemId,
+          });
+        });
+      }
       const newLootDistribution = container.itemDistribution.map((dist) => {
         return {
           tpl: dist.tpl,
