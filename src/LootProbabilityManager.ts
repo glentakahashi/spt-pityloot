@@ -313,7 +313,7 @@ export class LootProbabilityManager {
         missingContainerParts.forEach((itemId) => {
           debug &&
             this.logger.info(
-              `Adding gunsmith item to loot tables. container: ${containerId}, itemId: ${itemId}, probability: ${1000}`
+              `Adding gunsmith item to loot tables. container: ${containerId}, itemId: ${itemId}, baseProbability: ${1000}`
             );
           container.itemDistribution.push({
             relativeProbability: 1000,
@@ -334,7 +334,7 @@ export class LootProbabilityManager {
         missingContainerKeys.forEach((itemId) => {
           debug &&
             this.logger.info(
-              `Adding quest key to loot tables. container: ${containerId}, itemId: ${itemId}, probability: ${1000}`
+              `Adding quest key to loot tables. container: ${containerId}, itemId: ${itemId}, baseProbability: ${1000}`
             );
           container.itemDistribution.push({
             relativeProbability: 1000,
