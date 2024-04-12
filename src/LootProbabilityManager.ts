@@ -39,7 +39,10 @@ const GUNSMITH_CONTAINERS = [
 ];
 const QUEST_KEY_CONTAINERS = [
   "578f8778245977358849a9b5", // Jacket
+  "578f87b7245977356274f2cd", // Drawer
 ];
+
+const KEYCARD_ID = "5c94bbff86f7747ee735c08f";
 
 const botTypesToIgnore = ["bear", "usec", "gifter"];
 
@@ -294,7 +297,7 @@ export class LootProbabilityManager {
     incompleteItemRequirements: ItemRequirement[]
   ): [ILootBase, ILocations] {
     const missingKeys = incompleteItemRequirements
-      .filter((c) => c.type === "questKey")
+      .filter((c) => c.type === "questKey" || c.itemId === KEYCARD_ID)
       .map((c) => c.itemId);
     const missingParts = incompleteItemRequirements
       .filter((c) => c.type === "gunsmith")
