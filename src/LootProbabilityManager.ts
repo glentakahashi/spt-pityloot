@@ -131,7 +131,7 @@ export class LootProbabilityManager {
         ) {
           // Since we know we don't have enough non-fir, subtract that total count from needed, and set it to -1
           amountNeeded -= itemCount.notFoundInRaid;
-          itemCount.notFoundInRaid = -1;
+          itemCount.notFoundInRaid = 0;
           // then subtract the remaining from fir
           itemCount.foundInRaid -= amountNeeded;
           return true;

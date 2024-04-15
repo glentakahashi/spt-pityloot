@@ -3,7 +3,7 @@ import { IQuestStatus } from "@spt-aki/models/eft/common/tables/IBotBase";
 import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
 import { loadPityTrackerDatabase } from "./DatabaseUtils";
 import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
-import { includeKeys, includeGunsmith } from "../config/config.json";
+import { includeKeys, includeGunsmith, debug } from "../config/config.json";
 import questKeys from "../config/questKeys.json";
 import gunsmith from "../config/gunsmith.json";
 import { ItemRequirement } from "./LootProbabilityManager";
@@ -72,6 +72,11 @@ export class QuestUtils {
         condition.conditionType === "HandoverItem" ||
         condition.conditionType === "LeaveItemAtLocation"
     );
+    const allQuestsTargets = new Set(
+      quest.conditions.AvailableForFinish.flatMap((c) =>
+        Array.isArray(c.target) ? c.target : [c.target]
+      )
+    );
     const missingItemConditions = itemConditions.filter(
       (condition) => !completedConditions.includes(condition.id)
     );
@@ -100,6 +105,15 @@ export class QuestUtils {
     if (includeKeys && isKnownQuest(quest._id, questKeys)) {
       const keysForQuest = questKeys[quest._id];
       for (const keyForQuest of keysForQuest) {
+        if (allQuestsTargets.has(keyForQuest)) {
+          debug &&
+            this.logger.info(
+              `skipping quest key ${keyForQuest} because it's already a requirement of the quest ${
+                quest.QuestName ?? quest._id
+              }`
+            );
+          continue;
+        }
         conditions.push({
           type: "questKey",
           amountRequired: 1,
