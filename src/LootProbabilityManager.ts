@@ -425,6 +425,9 @@ export class LootProbabilityManager {
   ): IBots {
     const newBots: IBots = {
       ...bots,
+      types: {
+        ...bots.types,
+      },
     };
     for (const [botType, botValue] of Object.entries(bots.types)) {
       if (!botTypesToIgnore.includes(botType)) {
