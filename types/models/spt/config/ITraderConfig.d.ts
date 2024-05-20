@@ -31,7 +31,7 @@ export interface FenceConfig {
     /** Key: item tpl */
     itemStackSizeOverrideMinMax: Record<string, MinMax>;
     itemTypeLimits: Record<string, number>;
-    /** Prevent duplicate offers of items of specific categories by parentId*/
+    /** Prevent duplicate offers of items of specific categories by parentId */
     preventDuplicateOffersOfCategory: string[];
     regenerateAssortsOnRefresh: boolean;
     /** Max rouble price before item is not listed on flea */
@@ -40,6 +40,8 @@ export interface FenceConfig {
     presetSlotsToRemoveChancePercent: Record<string, number>;
     /** Block seasonal items from appearing when season is inactive */
     blacklistSeasonalItems: boolean;
+    /** Max pen value allowed to be listed on flea - affects ammo + ammo boxes */
+    ammoMaxPenLimit: number;
     blacklist: string[];
     coopExtractGift: CoopExtractReward;
     btrDeliveryExpireHours: number;

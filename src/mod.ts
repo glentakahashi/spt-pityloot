@@ -29,6 +29,7 @@ import { ILocations } from "@spt-aki/models/spt/server/ILocations";
 import { IBots } from "./helpers";
 import { IGetLocationRequestData } from "@spt-aki/models/eft/location/IGetLocationRequestData";
 import { ILocationBase } from "@spt-aki/models/eft/common/ILocationBase";
+import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
 
 class Mod implements IPreAkiLoadMod {
   preAkiLoad(container: DependencyContainer): void {
@@ -76,10 +77,12 @@ class Mod implements IPreAkiLoadMod {
           ): ILocationBase => {
             const start = performance.now();
 
-            const fullProfile = profileHelper.getFullProfile(sessionId);
+            // profile can be null for scav raids
+            const fullProfile: IAkiProfile | null =
+              profileHelper.getFullProfile(sessionId);
             if (
-              !fullProfile.characters.pmc ||
-              !fullProfile.characters.pmc.Hideout
+              !fullProfile?.characters.pmc ||
+              !fullProfile?.characters.pmc.Hideout
             ) {
               logger.warning(
                 `Profile not valid yet, skipping initialization for now`

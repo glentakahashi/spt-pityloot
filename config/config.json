@@ -12,5 +12,6 @@
   "maxDropRateMultiplier": 100,
   "dropRateIncreaseType": "raid",
   "dropRateIncreasePerRaid": 0.25,
-  "dropRateIncreasePerHour": 0.1
+  "dropRateIncreasePerHour": 0.1,
+  "excludeCollector": false
 }

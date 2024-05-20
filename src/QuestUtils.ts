@@ -3,7 +3,12 @@ import { IQuestStatus } from "@spt-aki/models/eft/common/tables/IBotBase";
 import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
 import { loadPityTrackerDatabase } from "./DatabaseUtils";
 import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
-import { includeKeys, includeGunsmith, debug } from "../config/config.json";
+import {
+  includeKeys,
+  includeGunsmith,
+  debug,
+  excludeCollector,
+} from "../config/config.json";
 import questKeys from "../config/questKeys.json";
 import gunsmith from "../config/gunsmith.json";
 import { ItemRequirement } from "./LootProbabilityManager";
@@ -38,7 +43,9 @@ export class QuestUtils {
     // augment inProgress Quests with # of raids since accepted
     const inProgressQuests = this.augmentQuestStatusesWithTrackingInfo(
       profile.characters.pmc.Quests.filter(
-        (quest) => quest.status === QuestStatus.Started
+        (quest) =>
+          (quest.qid !== "5c51aac186f77432ea65c552" || !excludeCollector) &&
+          quest.status === QuestStatus.Started
       )
     );
 

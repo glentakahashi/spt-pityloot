@@ -167,18 +167,15 @@ export interface IAdjustmentDetails {
     add: Record<string, Record<string, number>>;
     edit: Record<string, Record<string, number>>;
 }
-export interface IArmorPlateWeights {
+export interface IArmorPlateWeights extends Record<string, any> {
     levelRange: MinMax;
-    frontPlateWeights: Record<string, number>;
-    backPlateWeights: Record<string, number>;
-    sidePlateWeights: Record<string, number>;
 }
 export interface IRandomisedResourceDetails {
     food: IRandomisedResourceValues;
     meds: IRandomisedResourceValues;
 }
 export interface IRandomisedResourceValues {
-    /** Minimum percent of item to randomized between min and max resource*/
+    /** Minimum percent of item to randomized between min and max resource */
     resourcePercent: number;
     /** Chance for randomization to not occur */
     chanceMaxResourcePercent: number;
