@@ -135,7 +135,7 @@ class Mod implements IPreAkiLoadMod {
       { frequency: "Always" }
     );
 
-    maybeCreatePityTrackerDatabase();
+    // maybeCreatePityTrackerDatabase();
 
     function handlePityChange(sessionId: string, incrementRaidCount: boolean) {
       const fullProfile = profileHelper.getFullProfile(sessionId);

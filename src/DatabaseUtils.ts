@@ -6,7 +6,6 @@ import { HideoutAreas } from "@spt-aki/models/enums/HideoutAreas";
 import { HideoutUpgradeInfo } from "./HideoutUtils";
 
 const databaseDir = path.resolve(__dirname, "../database/");
-const pityTrackerPath = path.join(databaseDir, "pityTracker.json");
 
 type PityTracker = {
   hideout: HideoutTracker;
@@ -31,21 +30,26 @@ type QuestTracker = Record<
   }
 >;
 
-export function maybeCreatePityTrackerDatabase() {
+export function joinDatabasePath(profileId: string) {
+  return path.join(databaseDir, `${profileId}.json`);
+}
+
+export function maybeCreatePityTrackerDatabase(profileId: string) {
   if (!fs.existsSync(databaseDir)) {
     fs.mkdirSync(databaseDir, { recursive: true });
   }
-  if (!fs.existsSync(pityTrackerPath)) {
+  if (!fs.existsSync(joinDatabasePath(profileId))) {
     const emptyTracker: PityTracker = {
       hideout: {},
       quests: {},
     };
-    savePityTrackerDatabase(emptyTracker);
+    savePityTrackerDatabase(profileId, emptyTracker);
   }
 }
 
-export function loadPityTrackerDatabase(): PityTracker {
-  return JSON.parse(fs.readFileSync(pityTrackerPath, "ascii"));
+export function loadPityTrackerDatabase(profileId: string): PityTracker {
+  maybeCreatePityTrackerDatabase(profileId)
+  return JSON.parse(fs.readFileSync(joinDatabasePath(profileId), "ascii"));
 }
 
 // TODO: probably should support multiple profiles
@@ -55,7 +59,7 @@ export function updatePityTracker(
   incrementRaidCount: boolean
 ): void {
   const raidCountIncrease = incrementRaidCount ? 1 : 0;
-  const pityTracker = loadPityTrackerDatabase();
+  const pityTracker = loadPityTrackerDatabase(profile.info.id);
   const newQuestTracker: QuestTracker = {};
   for (const questStatus of profile.characters.pmc.Quests) {
     if (questStatus.status === QuestStatus.Started) {
@@ -88,12 +92,14 @@ export function updatePityTracker(
       };
     }
   }
-  savePityTrackerDatabase({
-    hideout: newHideoutTracker,
-    quests: newQuestTracker,
-  });
+  savePityTrackerDatabase(
+    profile.info.id,
+    {
+      hideout: newHideoutTracker,
+      quests: newQuestTracker,
+    });
 }
 
-export function savePityTrackerDatabase(pityTracker: PityTracker): void {
-  fs.writeFileSync(pityTrackerPath, JSON.stringify(pityTracker, null, 2));
+export function savePityTrackerDatabase(profileId: string, pityTracker: PityTracker): void {
+  fs.writeFileSync(joinDatabasePath(profileId), JSON.stringify(pityTracker, null, 2));
 }
