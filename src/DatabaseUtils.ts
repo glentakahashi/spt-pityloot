@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
-import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
-import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
-import { HideoutAreas } from "@spt-aki/models/enums/HideoutAreas";
+import { QuestStatus } from "@spt/models/enums/QuestStatus";
+import { HideoutAreas } from "@spt/models/enums/HideoutAreas";
 import { HideoutUpgradeInfo } from "./HideoutUtils";
+import { ISptProfile } from "@spt/models/eft/profile/ISptProfile";
 
 const databaseDir = path.resolve(__dirname, "../database/");
 const pityTrackerPath = path.join(databaseDir, "pityTracker.json");
@@ -50,7 +50,7 @@ export function loadPityTrackerDatabase(): PityTracker {
 
 // TODO: probably should support multiple profiles
 export function updatePityTracker(
-  profile: IAkiProfile,
+  profile: ISptProfile,
   hideoutUpgrades: HideoutUpgradeInfo[],
   incrementRaidCount: boolean
 ): void {

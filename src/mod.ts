@@ -1,12 +1,11 @@
 import { DependencyContainer } from "tsyringe";
-import { IPreAkiLoadMod } from "@spt-aki/models/external/IPreAkiLoadMod";
-import type { StaticRouterModService } from "@spt-aki/services/mod/staticRouter/StaticRouterModService";
-import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
-import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
-import { IQuest } from "@spt-aki/models/eft/common/tables/IQuest";
-import { ILootBase } from "@spt-aki/models/eft/common/tables/ILootBase";
+import { IPreSptLoadMod } from "@spt/models/external/IPreSptLoadMod";
+import type { StaticRouterModService } from "@spt/services/mod/staticRouter/StaticRouterModService";
+import { ProfileHelper } from "@spt/helpers/ProfileHelper";
+import { DatabaseServer } from "@spt/servers/DatabaseServer";
+import { IQuest } from "@spt/models/eft/common/tables/IQuest";
 import { LootProbabilityManager } from "./LootProbabilityManager";
-import { ISaveProgressRequestData } from "@spt-aki/models/eft/inRaid/ISaveProgressRequestData";
+import { ISaveProgressRequestData } from "@spt/models/eft/inRaid/ISaveProgressRequestData";
 import {
   enabled,
   includeScavRaids,
@@ -14,25 +13,24 @@ import {
   appliesToQuests,
   debug,
 } from "../config/config.json";
-import { IItemEventRouterRequest } from "@spt-aki/models/eft/itemEvent/IItemEventRouterRequest";
-import { HideoutEventActions } from "@spt-aki/models/enums/HideoutEventActions";
-import type { PreAkiModLoader } from "@spt-aki/loaders/PreAkiModLoader";
-import type { LocationController } from "@spt-aki/controllers/LocationController";
+import { IItemEventRouterRequest } from "@spt/models/eft/itemEvent/IItemEventRouterRequest";
+import { HideoutEventActions } from "@spt/models/enums/HideoutEventActions";
+import type { PreSptModLoader } from "@spt/loaders/PreSptModLoader";
+import type { LocationController } from "@spt/controllers/LocationController";
 import {
   maybeCreatePityTrackerDatabase,
   updatePityTracker,
 } from "./DatabaseUtils";
 import { QuestUtils } from "./QuestUtils";
 import { HideoutUtils } from "./HideoutUtils";
-import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
-import { ILocations } from "@spt-aki/models/spt/server/ILocations";
+import { ILogger } from "@spt/models/spt/utils/ILogger";
+import { ILocations } from "@spt/models/spt/server/ILocations";
 import { IBots } from "./helpers";
-import { IGetLocationRequestData } from "@spt-aki/models/eft/location/IGetLocationRequestData";
-import { ILocationBase } from "@spt-aki/models/eft/common/ILocationBase";
-import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
+import { IGetLocationRequestData } from "@spt/models/eft/location/IGetLocationRequestData";
+import { ILocationBase } from "@spt/models/eft/common/ILocationBase";
 
-class Mod implements IPreAkiLoadMod {
-  preAkiLoad(container: DependencyContainer): void {
+class Mod implements IPreSptLoadMod {
+  preSptLoad(container: DependencyContainer): void {
     if (!enabled) {
       return;
     }
@@ -49,15 +47,14 @@ class Mod implements IPreAkiLoadMod {
     const pityLootManager = new LootProbabilityManager(logger);
 
     let allQuests: Record<string, IQuest> | undefined;
-    let originalLootTables: ILootBase | undefined;
     let originalLocations: ILocations | undefined;
     let originalBots: IBots | undefined;
     let algorithmicLevelingProgressionCompatibility = false;
 
-    const preAkiModLoader =
-      container.resolve<PreAkiModLoader>("PreAkiModLoader");
+    const preSptModLoader =
+      container.resolve<PreSptModLoader>("PreSptModLoader");
     if (
-      preAkiModLoader
+      preSptModLoader
         .getImportedModsNames()
         .some((mod) => mod.includes("AlgorithmicLevelProgression"))
     ) {
@@ -78,8 +75,7 @@ class Mod implements IPreAkiLoadMod {
             const start = performance.now();
 
             // profile can be null for scav raids
-            const fullProfile: IAkiProfile | null =
-              profileHelper.getFullProfile(sessionId);
+            const fullProfile = profileHelper.getFullProfile(sessionId);
             if (
               !fullProfile?.characters.pmc ||
               !fullProfile?.characters.pmc.Hideout
@@ -112,14 +108,12 @@ class Mod implements IPreAkiLoadMod {
                     incompleteItemRequirements
                   );
 
-                if (originalLootTables && originalLocations) {
-                  [tables.loot, tables.locations] =
-                    pityLootManager.getUpdatedLocationLoot(
-                      getNewLootProbability,
-                      originalLootTables,
-                      originalLocations,
-                      incompleteItemRequirements
-                    );
+                if (originalLocations) {
+                  tables.locations = pityLootManager.getUpdatedLocationLoot(
+                    getNewLootProbability,
+                    originalLocations,
+                    incompleteItemRequirements
+                  );
                 }
                 const end = performance.now();
                 debug &&
@@ -139,7 +133,7 @@ class Mod implements IPreAkiLoadMod {
 
     function handlePityChange(sessionId: string, incrementRaidCount: boolean) {
       const fullProfile = profileHelper.getFullProfile(sessionId);
-      if (!fullProfile.characters.pmc || !fullProfile.characters.pmc.Hideout) {
+      if (!fullProfile?.characters.pmc || !fullProfile.characters.pmc.Hideout) {
         debug &&
           logger.info(`Profile not valid yet, skipping initialization for now`);
         return;
@@ -161,18 +155,15 @@ class Mod implements IPreAkiLoadMod {
       [
         {
           url: "/client/game/start",
-          action: (url, info, sessionId, output) => {
+          action: async (url, info, sessionId, output) => {
             const tables = databaseServer.getTables();
 
             // Store quests and loot tables at startup, so that we always get them after all other mods have loaded and possibly changed their settings (e.g. AlgorithmicQuestRandomizer or AllTheLoot)
-            // We could try and do this by hooking into postAkiLoad and making this mod last in the load order, but this seems like a more reliable solution
+            // We could try and do this by hooking into postSptLoad and making this mod last in the load order, but this seems like a more reliable solution
             if (allQuests == null) {
               allQuests = tables.templates?.quests;
             }
             // the reason we also store original tables only once is so that when calculating new odds, we don't have to do funky math to undo previous increases
-            if (originalLootTables == null) {
-              originalLootTables = tables.loot;
-            }
             if (originalLocations == null) {
               originalLocations = tables.locations;
             }
@@ -193,7 +184,12 @@ class Mod implements IPreAkiLoadMod {
       [
         {
           url: "/raid/profile/save",
-          action: (_url, info: ISaveProgressRequestData, sessionId, output) => {
+          action: async (
+            _url,
+            info: ISaveProgressRequestData,
+            sessionId,
+            output
+          ) => {
             handlePityChange(sessionId, !info.isPlayerScav || includeScavRaids);
             return output;
           },
@@ -207,7 +203,12 @@ class Mod implements IPreAkiLoadMod {
       [
         {
           url: "/client/game/profile/items/moving",
-          action: (_url, info: IItemEventRouterRequest, sessionId, output) => {
+          action: async (
+            _url,
+            info: IItemEventRouterRequest,
+            sessionId,
+            output
+          ) => {
             let pityStatusChanged = false;
             for (const body of info.data) {
               pityStatusChanged =
@@ -236,12 +237,12 @@ class Mod implements IPreAkiLoadMod {
       [
         {
           url: "/client/raid/configuration",
-          action: (_url, _info, sessionId, output) => {
+          action: async (_url, _info, sessionId, output) => {
             const start = performance.now();
 
             const fullProfile = profileHelper.getFullProfile(sessionId);
             if (
-              !fullProfile.characters.pmc ||
+              !fullProfile?.characters.pmc ||
               !fullProfile.characters.pmc.Hideout
             ) {
               logger.warning(

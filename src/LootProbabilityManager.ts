@@ -1,8 +1,4 @@
-import {
-  ILootBase,
-  IStaticLootDetails,
-} from "@spt-aki/models/eft/common/tables/ILootBase";
-import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
+import { ISptProfile } from "@spt/models/eft/profile/ISptProfile";
 import {
   maxDropRateMultiplier,
   dropRateIncreaseType,
@@ -13,15 +9,20 @@ import {
   debug,
   trace,
 } from "../config/config.json";
-import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
-import { ILocations } from "@spt-aki/models/spt/server/ILocations";
-import { ILooseLoot } from "@spt-aki/models/eft/common/ILooseLoot";
+import { ILogger } from "@spt/models/spt/utils/ILogger";
+import { ILocations } from "@spt/models/spt/server/ILocations";
+import { ILooseLoot } from "@spt/models/eft/common/ILooseLoot";
 import { IBots, assertNever } from "./helpers";
 import {
   Equipment,
   IBotType,
   Items,
-} from "@spt-aki/models/eft/common/tables/IBotType";
+} from "@spt/models/eft/common/tables/IBotType";
+import {
+  ILocation,
+  IStaticLootDetails,
+} from "@spt/models/eft/common/ILocation";
+import { ILocationsBase } from "@spt/models/eft/common/tables/ILocationsBase";
 
 const excludedItems = [
   // Money
@@ -81,7 +82,7 @@ export class LootProbabilityManager {
   constructor(private logger: ILogger) {}
 
   getIncompleteRequirements(
-    profile: IAkiProfile,
+    profile: ISptProfile,
     questItemRequirements: ItemRequirement[],
     hideoutItemRequirements: ItemRequirement[]
   ) {
@@ -292,87 +293,87 @@ export class LootProbabilityManager {
       relativeProbability: number,
       loc: string
     ) => number,
-    loot: ILootBase,
     locations: ILocations,
     incompleteItemRequirements: ItemRequirement[]
-  ): [ILootBase, ILocations] {
+  ): ILocations {
     const missingKeys = incompleteItemRequirements
       .filter((c) => c.type === "questKey" || c.itemId === KEYCARD_ID)
       .map((c) => c.itemId);
     const missingParts = incompleteItemRequirements
       .filter((c) => c.type === "gunsmith")
       .map((c) => c.itemId);
-    const newStaticLoot: Record<string, IStaticLootDetails> = {};
-    for (const [containerId, container] of Object.entries(loot.staticLoot)) {
-      if (
-        missingParts.length > 0 &&
-        GUNSMITH_CONTAINERS.includes(containerId)
-      ) {
-        const missingContainerParts = new Set(missingParts);
-        container.itemDistribution.forEach((dist) => {
-          if (missingContainerParts.has(dist.tpl)) {
-            missingContainerParts.delete(dist.tpl);
-          }
-        });
-        missingContainerParts.forEach((itemId) => {
-          debug &&
-            this.logger.info(
-              `Adding gunsmith item to loot tables. container: ${containerId}, itemId: ${itemId}, baseProbability: ${1000}`
-            );
-          container.itemDistribution.push({
-            relativeProbability: 1000,
-            tpl: itemId,
-          });
-        });
-      }
-      if (
-        missingKeys.length > 0 &&
-        QUEST_KEY_CONTAINERS.includes(containerId)
-      ) {
-        const missingContainerKeys = new Set(missingKeys);
-        container.itemDistribution.forEach((dist) => {
-          if (missingContainerKeys.has(dist.tpl)) {
-            missingContainerKeys.delete(dist.tpl);
-          }
-        });
-        missingContainerKeys.forEach((itemId) => {
-          debug &&
-            this.logger.info(
-              `Adding quest key to loot tables. container: ${containerId}, itemId: ${itemId}, baseProbability: ${1000}`
-            );
-          container.itemDistribution.push({
-            relativeProbability: 1000,
-            tpl: itemId,
-          });
-        });
-      }
-      const newLootDistribution = container.itemDistribution.map((dist) => {
-        return {
-          tpl: dist.tpl,
-          relativeProbability: getNewLootProbability(
-            dist.tpl,
-            dist.relativeProbability,
-            `container ${containerId}`
-          ),
-        };
-      });
-
-      const newContainer: IStaticLootDetails = {
-        itemcountDistribution: container.itemcountDistribution,
-        itemDistribution: newLootDistribution,
-      };
-      newStaticLoot[containerId] = newContainer;
-    }
-    const newLootTables: ILootBase = {
-      ...loot,
-      staticLoot: newStaticLoot,
-    };
 
     const newLocations: ILocations = {};
-    for (const [locationId, location] of Object.entries(locations)) {
-      if (!location || !("looseLoot" in location)) {
-        newLocations[locationId as keyof ILocations] = location;
+    for (const [locationId, location] of Object.entries(locations) as (
+      | [Exclude<keyof ILocations, "base">, ILocation]
+      | ["base", ILocationsBase]
+    )[]) {
+      if (locationId === "base") {
+        newLocations[locationId] = location;
       } else {
+        const newStaticLoot: Record<string, IStaticLootDetails> = {};
+        for (const [containerId, container] of Object.entries(
+          location.staticLoot
+        )) {
+          if (
+            missingParts.length > -1 &&
+            GUNSMITH_CONTAINERS.includes(containerId)
+          ) {
+            const missingContainerParts = new Set(missingParts);
+            container.itemDistribution.forEach((dist) => {
+              if (missingContainerParts.has(dist.tpl)) {
+                missingContainerParts.delete(dist.tpl);
+              }
+            });
+            missingContainerParts.forEach((itemId) => {
+              debug &&
+                this.logger.info(
+                  `Adding gunsmith item to loot tables. container: ${containerId}, itemId: ${itemId}, baseProbability: ${999}`
+                );
+              container.itemDistribution.push({
+                relativeProbability: 999,
+                tpl: itemId,
+              });
+            });
+          }
+          if (
+            missingKeys.length > -1 &&
+            QUEST_KEY_CONTAINERS.includes(containerId)
+          ) {
+            const missingContainerKeys = new Set(missingKeys);
+            container.itemDistribution.forEach((dist) => {
+              if (missingContainerKeys.has(dist.tpl)) {
+                missingContainerKeys.delete(dist.tpl);
+              }
+            });
+            missingContainerKeys.forEach((itemId) => {
+              debug &&
+                this.logger.info(
+                  `Adding quest key to loot tables. container: ${containerId}, itemId: ${itemId}, baseProbability: ${999}`
+                );
+              container.itemDistribution.push({
+                relativeProbability: 999,
+                tpl: itemId,
+              });
+            });
+          }
+          const newLootDistribution = container.itemDistribution.map((dist) => {
+            return {
+              tpl: dist.tpl,
+              relativeProbability: getNewLootProbability(
+                dist.tpl,
+                dist.relativeProbability,
+                `container ${containerId}`
+              ),
+            };
+          });
+
+          const newContainer: IStaticLootDetails = {
+            itemcountDistribution: container.itemcountDistribution,
+            itemDistribution: newLootDistribution,
+          };
+          newStaticLoot[containerId] = newContainer;
+        }
         const newLooseLoot: ILooseLoot = {
           ...location.looseLoot,
         };
@@ -406,13 +407,13 @@ export class LootProbabilityManager {
             };
           }
         );
-        newLocations[locationId as keyof ILocations] = {
+        newLocations[locationId] = {
           ...location,
           looseLoot: newLooseLoot,
         };
       }
     }
-    return [newLootTables, newLocations];
+    return newLocations;
   }
 
   getUpdatedBotTables(

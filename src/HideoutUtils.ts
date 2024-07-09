@@ -1,9 +1,9 @@
-import { IHideoutArea } from "@spt-aki/models/eft/hideout/IHideoutArea";
-import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
-import { HideoutAreas } from "@spt-aki/models/enums/HideoutAreas";
+import { IHideoutArea } from "@spt/models/eft/hideout/IHideoutArea";
+import { ISptProfile } from "@spt/models/eft/profile/ISptProfile";
+import { HideoutAreas } from "@spt/models/enums/HideoutAreas";
 import { loadPityTrackerDatabase } from "./DatabaseUtils";
 import { HideoutItemRequirement } from "./LootProbabilityManager";
-import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ILogger } from "@spt/models/spt/utils/ILogger";
 
 function getSkillLevelFromProgress(progress: number): number {
   let xpToLevel = 10;
@@ -32,7 +32,7 @@ export class HideoutUtils {
 
   getHideoutRequirements(
     hideoutAreas: IHideoutArea[],
-    profile: IAkiProfile
+    profile: ISptProfile
   ): HideoutItemRequirement[] {
     const possibleUpgrades = this.getPossibleHideoutUpgrades(
       hideoutAreas,
@@ -59,7 +59,7 @@ export class HideoutUtils {
   // Returns a list of hideouts upgrades that you meet all the prerequisites for, and what items are required
   getPossibleHideoutUpgrades(
     hideoutAreas: IHideoutArea[],
-    profile: IAkiProfile
+    profile: ISptProfile
   ): HideoutUpgradeInfo[] {
     const completedHideoutAreas = Object.fromEntries(
       profile.characters.pmc.Hideout.Areas.map((h) => [

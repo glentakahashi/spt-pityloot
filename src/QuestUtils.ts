@@ -1,8 +1,8 @@
-import { IQuest } from "@spt-aki/models/eft/common/tables/IQuest";
-import { IQuestStatus } from "@spt-aki/models/eft/common/tables/IBotBase";
-import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
+import { IQuest } from "@spt/models/eft/common/tables/IQuest";
+import { IQuestStatus } from "@spt/models/eft/common/tables/IBotBase";
+import { QuestStatus } from "@spt/models/enums/QuestStatus";
 import { loadPityTrackerDatabase } from "./DatabaseUtils";
-import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
+import { ISptProfile } from "@spt/models/eft/profile/ISptProfile";
 import {
   includeKeys,
   includeGunsmith,
@@ -12,7 +12,7 @@ import {
 import questKeys from "../config/questKeys.json";
 import gunsmith from "../config/gunsmith.json";
 import { ItemRequirement } from "./LootProbabilityManager";
-import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ILogger } from "@spt/models/spt/utils/ILogger";
 
 type AugmentedQuestStatus = IQuestStatus & { raidsSinceStarted: number };
 
@@ -37,7 +37,7 @@ export class QuestUtils {
   }
 
   getInProgressQuestRequirements(
-    profile: IAkiProfile,
+    profile: ISptProfile,
     quests: Record<string, IQuest>
   ): ItemRequirement[] {
     // augment inProgress Quests with # of raids since accepted
