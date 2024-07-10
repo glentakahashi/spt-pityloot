@@ -317,8 +317,8 @@ export class LootProbabilityManager {
         !location.staticLoot ||
         !location.looseLoot
       ) {
-        this.logger.error(`Invalid location found ${locationId}`);
-        continue;
+        this.logger.warning(`Invalid location found ${locationId}`);
+        newLocations[locationId] = location;
       } else {
         const newStaticLoot: Record<string, IStaticLootDetails> = {};
         for (const [containerId, container] of Object.entries(
