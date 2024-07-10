@@ -1,10 +1,10 @@
 {
   "name": "PityLoot",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "main": "src/mod.js",
   "license": "MIT",
   "author": "Bakahashi",
-  "akiVersion": "~3.9",
+  "sptVersion": "~3.9",
   "loadBefore": [],
   "loadAfter": [],
   "incompatibilities": [],

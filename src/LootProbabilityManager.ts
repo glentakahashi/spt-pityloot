@@ -20,6 +20,7 @@ import {
 } from "@spt/models/eft/common/tables/IBotType";
 import {
   ILocation,
+  IStaticAmmoDetails,
   IStaticLootDetails,
 } from "@spt/models/eft/common/ILocation";
 import { ILocationsBase } from "@spt/models/eft/common/tables/ILocationsBase";
@@ -310,6 +311,14 @@ export class LootProbabilityManager {
     )[]) {
       if (locationId === "base") {
         newLocations[locationId] = location;
+      } else if (
+        !location ||
+        !location.staticAmmo ||
+        !location.staticLoot ||
+        !location.looseLoot
+      ) {
+        this.logger.error(`Invalid location found ${locationId}`);
+        continue;
       } else {
         const newStaticLoot: Record<string, IStaticLootDetails> = {};
         for (const [containerId, container] of Object.entries(
@@ -407,9 +416,25 @@ export class LootProbabilityManager {
             };
           }
         );
+        const newStaticAmmo: Record<string, IStaticAmmoDetails[]> = {};
+        for (const [ammoId, ammoDetails] of Object.entries(
+          location.staticAmmo
+        )) {
+          const newAmmoDetails: IStaticAmmoDetails[] = ammoDetails.map((v) => ({
+            relativeProbability: getNewLootProbability(
+              v.tpl,
+              v.relativeProbability,
+              `ammo ${ammoId}`
+            ),
+            tpl: v.tpl,
+          }));
+          newStaticAmmo[ammoId] = newAmmoDetails;
+        }
         newLocations[locationId] = {
           ...location,
           looseLoot: newLooseLoot,
+          staticLoot: newStaticLoot,
+          staticAmmo: newStaticAmmo,
         };
       }
     }
