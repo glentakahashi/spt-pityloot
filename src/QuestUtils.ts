@@ -27,9 +27,10 @@ export class QuestUtils {
   constructor(private logger: ILogger) {}
 
   augmentQuestStatusesWithTrackingInfo(
+    profileId: string,
     questStatuses: IQuestStatus[]
   ): AugmentedQuestStatus[] {
-    const questTracker = loadPityTrackerDatabase().quests;
+    const questTracker = loadPityTrackerDatabase(profileId).quests;
     return questStatuses.map((questStatus) => ({
       ...questStatus,
       raidsSinceStarted: questTracker[questStatus.qid]?.raidsSinceStarted ?? 0,
@@ -42,6 +43,7 @@ export class QuestUtils {
   ): ItemRequirement[] {
     // augment inProgress Quests with # of raids since accepted
     const inProgressQuests = this.augmentQuestStatusesWithTrackingInfo(
+      profile.info.id,
       profile.characters.pmc.Quests.filter(
         (quest) =>
           (quest.qid !== "5c51aac186f77432ea65c552" || !excludeCollector) &&

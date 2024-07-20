@@ -38,7 +38,7 @@ export class HideoutUtils {
       hideoutAreas,
       profile
     );
-    const hideoutTracker = loadPityTrackerDatabase().hideout;
+    const hideoutTracker = loadPityTrackerDatabase(profile.info.id).hideout;
     return possibleUpgrades.flatMap(
       (possibleUpgrade): HideoutItemRequirement[] => {
         const tracker = hideoutTracker[possibleUpgrade.area];
