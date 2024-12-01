@@ -14,9 +14,9 @@ import { ILocations } from "@spt/models/spt/server/ILocations";
 import { ILooseLoot } from "@spt/models/eft/common/ILooseLoot";
 import { IBots, assertNever } from "./helpers";
 import {
-  Equipment,
+  IEquipment,
   IBotType,
-  Items,
+  IItemPools,
 } from "@spt/models/eft/common/tables/IBotType";
 import {
   ILocation,
@@ -481,7 +481,7 @@ export class LootProbabilityManager {
                 ]
               )
               // TODO: fix types
-            ) as unknown as Equipment,
+            ) as unknown as IEquipment,
             items: Object.fromEntries(
               Object.entries(botValue.inventory.items).map(
                 ([inventorySlot, probabilities]: [
@@ -502,7 +502,7 @@ export class LootProbabilityManager {
                 ]
               )
               // TODO: fix types
-            ) as unknown as Items,
+            ) as unknown as IItemPools,
           },
         };
         newBots.types[botType] = newBot;

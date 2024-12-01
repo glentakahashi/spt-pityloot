@@ -5,12 +5,12 @@ import { ProfileHelper } from "@spt/helpers/ProfileHelper";
 import { DatabaseServer } from "@spt/servers/DatabaseServer";
 import { IQuest } from "@spt/models/eft/common/tables/IQuest";
 import { LootProbabilityManager } from "./LootProbabilityManager";
-import { ISaveProgressRequestData } from "@spt/models/eft/inRaid/ISaveProgressRequestData";
 import {
   enabled,
   includeScavRaids,
   appliesToHideout,
   appliesToQuests,
+  onlyIncreaseOnFailedRaids,
   debug,
 } from "../config/config.json";
 import { IItemEventRouterRequest } from "@spt/models/eft/itemEvent/IItemEventRouterRequest";
@@ -26,8 +26,9 @@ import { HideoutUtils } from "./HideoutUtils";
 import { ILogger } from "@spt/models/spt/utils/ILogger";
 import { ILocations } from "@spt/models/spt/server/ILocations";
 import { IBots } from "./helpers";
-import { IGetLocationRequestData } from "@spt/models/eft/location/IGetLocationRequestData";
-import { ILocationBase } from "@spt/models/eft/common/ILocationBase";
+import { IEndLocalRaidRequestData } from "@spt/models/eft/match/IEndLocalRaidRequestData";
+import { ILocationsGenerateAllResponse } from "@spt/models/eft/common/ILocationsSourceDestinationBase";
+import { ExitStatus } from "@spt/models/enums/ExitStatis";
 
 class Mod implements IPreSptLoadMod {
   preSptLoad(container: DependencyContainer): void {
@@ -68,10 +69,9 @@ class Mod implements IPreSptLoadMod {
       "LocationController",
       (_t, result: LocationController | LocationController[]) => {
         for (const controller of Array.isArray(result) ? result : [result]) {
-          controller.get = (
-            sessionId: string,
-            request: IGetLocationRequestData
-          ): ILocationBase => {
+          controller.generateAll = (
+            sessionId: string
+          ): ILocationsGenerateAllResponse => {
             const start = performance.now();
 
             // profile can be null for scav raids
@@ -122,7 +122,7 @@ class Mod implements IPreSptLoadMod {
                   );
               }
             }
-            return locationController.get(sessionId, request);
+            return locationController.generateAll(sessionId);
           };
         }
       },
@@ -176,26 +176,38 @@ class Mod implements IPreSptLoadMod {
           },
         },
       ],
-      "aki"
+      "spt"
     );
 
     staticRouterModService.registerStaticRouter(
       "PityLootPostRaidHooks",
       [
         {
-          url: "/raid/profile/save",
+          url: "/client/match/local/end",
           action: async (
             _url,
-            info: ISaveProgressRequestData,
+            info: IEndLocalRaidRequestData,
             sessionId,
             output
           ) => {
-            handlePityChange(sessionId, !info.isPlayerScav || includeScavRaids);
+            const failed = [
+              ExitStatus.KILLED,
+              ExitStatus.MISSINGINACTION,
+            ].includes(info.results.result);
+            const survived = [ExitStatus.SURVIVED, ExitStatus.RUNNER].includes(
+              info.results.result
+            );
+            if (failed || (!onlyIncreaseOnFailedRaids && survived)) {
+              handlePityChange(
+                sessionId,
+                info.results.profile.Info.Side !== "Savage" || includeScavRaids
+              );
+            }
             return output;
           },
         },
       ],
-      "aki"
+      "spt"
     );
 
     staticRouterModService.registerStaticRouter(
@@ -229,7 +241,7 @@ class Mod implements IPreSptLoadMod {
           },
         },
       ],
-      "aki"
+      "spt"
     );
 
     staticRouterModService.registerStaticRouter(
@@ -287,7 +299,7 @@ class Mod implements IPreSptLoadMod {
           },
         },
       ],
-      "aki"
+      "spt"
     );
   }
 }

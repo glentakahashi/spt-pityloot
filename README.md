@@ -19,6 +19,7 @@ Config options are explained as below
                           // with increasesStack = true, the pity odds are 100%, so drop rate is doubled
                           // with increasesStack = false, it take the maximum of the increases, in this case 80%, and uses that
   "includeScavRaids": true, // whether or not to count Scav Raids as "increasePerRaid"
+  "onlyIncreaseOnFailedRaids": true, // Don't increase pity when you extract successfully
   "includeKeys": true, // Whether or not to include quest keys (like rusty bloody key, or west wing 216) in pity system
   "keysAdditionalMultiplier": 2.5, // Additional multiplier on top of normal ones.
                                    // If a quest needs items and stuff behind a locked door, and the items are at 80% pity
@@ -28,6 +29,7 @@ Config options are explained as below
   "dropRateIncreaseType": "raid", // `raid` to use raid increase below, `time` to use per hour increase
   "dropRateIncreasePerRaid": 0.2, // Additive multiplier increase per raid (0.2 = 20%), 1 raid = 20%, 2 = 40%, etc.
   "dropRateIncreasePerHour": 0.05 // Same as above but for hours. 1hr = 5% increase, 1 day = 120%
+  "excludeCollector": false // Whether or not to exclude the collector quest for bonus items
 }
 ```
 

@@ -7,11 +7,12 @@
   "appliesToHideout": true,
   "increasesStack": true,
   "includeScavRaids": true,
+  "onlyIncreaseOnFailedRaids": true,
   "includeKeys": true,
   "keysAdditionalMultiplier": 2.5,
-  "maxDropRateMultiplier": 100,
+  "maxDropRateMultiplier": 10,
   "dropRateIncreaseType": "raid",
   "dropRateIncreasePerRaid": 0.25,
-  "dropRateIncreasePerHour": 0.1,
+  "dropRateIncreasePerHour": 0.05,
   "excludeCollector": false
 }
