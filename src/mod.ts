@@ -129,7 +129,7 @@ class Mod implements IPreSptLoadMod {
       { frequency: "Always" }
     );
 
-    maybeCreatePityTrackerDatabase();
+    // maybeCreatePityTrackerDatabase();
 
     function handlePityChange(sessionId: string, incrementRaidCount: boolean) {
       const fullProfile = profileHelper.getFullProfile(sessionId);
