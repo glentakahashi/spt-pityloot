@@ -12,6 +12,7 @@ Config options are explained as below
 {
   "enabled": true,
   "debug": true,
+  "trace": false,          // Logs a LOT of stuff, will cause your game to lag when accepting/turning in hideouts/quests
   "appliesToQuests": true, // Whether or not to account for quest items in pity odds
   "appliesToHideout": true, // Whether or not to account for hideout upgrades in pity odds
   "increasesStack": true, // Whether or not drop rate increases stack
