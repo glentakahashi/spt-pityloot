@@ -30,6 +30,11 @@ import { IEndLocalRaidRequestData } from "@spt/models/eft/match/IEndLocalRaidReq
 import { ILocationsGenerateAllResponse } from "@spt/models/eft/common/ILocationsSourceDestinationBase";
 import { ExitStatus } from "@spt/models/enums/ExitStatis";
 
+// Some mods make frequent calls to the LocationController every time you open your inventory
+// I don't know why they do that, but since pity loot takes ~1-2 seconds to regenerate the loot tables
+// We try to avoid this by tracking any time pity changes, and only regenerating when this flag is `true`
+let needsPityUpdates = true;
+
 class Mod implements IPreSptLoadMod {
   preSptLoad(container: DependencyContainer): void {
     if (!enabled) {
@@ -72,55 +77,63 @@ class Mod implements IPreSptLoadMod {
           controller.generateAll = (
             sessionId: string
           ): ILocationsGenerateAllResponse => {
-            const start = performance.now();
+            if (needsPityUpdates) {
+              const start = performance.now();
+              // profile can be null for scav raids
+              const fullProfile = profileHelper.getFullProfile(sessionId);
+              if (
+                !fullProfile?.characters.pmc ||
+                !fullProfile?.characters.pmc.Hideout
+              ) {
+                logger.warning(
+                  `Profile not valid yet, skipping initialization for now`
+                );
+              } else {
+                const tables = databaseServer.getTables();
 
-            // profile can be null for scav raids
-            const fullProfile = profileHelper.getFullProfile(sessionId);
-            if (
-              !fullProfile?.characters.pmc ||
-              !fullProfile?.characters.pmc.Hideout
-            ) {
-              logger.warning(
-                `Profile not valid yet, skipping initialization for now`
-              );
-            } else {
-              const tables = databaseServer.getTables();
+                if (allQuests) {
+                  const incompleteItemRequirements =
+                    pityLootManager.getIncompleteRequirements(
+                      fullProfile,
+                      appliesToQuests
+                        ? questUtils.getInProgressQuestRequirements(
+                            fullProfile,
+                            allQuests
+                          )
+                        : [],
+                      appliesToHideout && tables.hideout
+                        ? hideoutUtils.getHideoutRequirements(
+                            tables.hideout.areas,
+                            fullProfile
+                          )
+                        : []
+                    );
+                  const getNewLootProbability =
+                    pityLootManager.createLootProbabilityUpdater(
+                      incompleteItemRequirements
+                    );
 
-              if (allQuests) {
-                const incompleteItemRequirements =
-                  pityLootManager.getIncompleteRequirements(
-                    fullProfile,
-                    appliesToQuests
-                      ? questUtils.getInProgressQuestRequirements(
-                          fullProfile,
-                          allQuests
-                        )
-                      : [],
-                    appliesToHideout && tables.hideout
-                      ? hideoutUtils.getHideoutRequirements(
-                          tables.hideout.areas,
-                          fullProfile
-                        )
-                      : []
-                  );
-                const getNewLootProbability =
-                  pityLootManager.createLootProbabilityUpdater(
-                    incompleteItemRequirements
-                  );
-
-                if (originalLocations) {
-                  tables.locations = pityLootManager.getUpdatedLocationLoot(
-                    getNewLootProbability,
-                    originalLocations,
-                    incompleteItemRequirements
-                  );
+                  if (originalLocations) {
+                    tables.locations = pityLootManager.getUpdatedLocationLoot(
+                      getNewLootProbability,
+                      originalLocations,
+                      incompleteItemRequirements
+                    );
+                    // Skip regenerating loot until next time pity updates
+                    needsPityUpdates = false;
+                  }
+                  const end = performance.now();
+                  debug &&
+                    logger.info(
+                      `Pity loot location updates took: ${end - start} ms`
+                    );
                 }
-                const end = performance.now();
-                debug &&
-                  logger.info(
-                    `Pity loot location updates took: ${end - start} ms`
-                  );
               }
+            } else {
+              debug &&
+                logger.info(
+                  `Location generator was called but pity has not changed, skipping Pity loot step`
+                );
             }
             return locationController.generateAll(sessionId);
           };
@@ -148,6 +161,8 @@ class Mod implements IPreSptLoadMod {
         ),
         incrementRaidCount
       );
+      // Need to set the flag to regenerate loot tables
+      needsPityUpdates = true;
     }
 
     staticRouterModService.registerStaticRouter(
