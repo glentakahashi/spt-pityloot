@@ -8,7 +8,9 @@ import { ISptProfile } from "@spt/models/eft/profile/ISptProfile";
 const databaseDir = path.resolve(__dirname, "../database/");
 const pityTrackerPath = path.join(databaseDir, "pityTracker.json");
 
-type PityTracker = {
+type PityTracker = Record<string, UserPityTracker>;
+
+type UserPityTracker = {
   hideout: HideoutTracker;
   quests: QuestTracker;
 };
@@ -36,26 +38,33 @@ export function maybeCreatePityTrackerDatabase() {
     fs.mkdirSync(databaseDir, { recursive: true });
   }
   if (!fs.existsSync(pityTrackerPath)) {
-    const emptyTracker: PityTracker = {
-      hideout: {},
-      quests: {},
-    };
-    savePityTrackerDatabase(emptyTracker);
+    fs.writeFileSync(pityTrackerPath, JSON.stringify({}, null, 2));
   }
 }
 
-export function loadPityTrackerDatabase(): PityTracker {
+export function loadPityTracker(): PityTracker {
   return JSON.parse(fs.readFileSync(pityTrackerPath, "ascii"));
 }
 
-// TODO: probably should support multiple profiles
+export function loadProfilePityTracker(profile: ISptProfile): UserPityTracker {
+  const pityTracker = loadPityTracker();
+
+  return (
+    pityTracker[profile.info.id] ?? {
+      hideout: {},
+      quests: {},
+    }
+  );
+}
+
 export function updatePityTracker(
   profile: ISptProfile,
   hideoutUpgrades: HideoutUpgradeInfo[],
   incrementRaidCount: boolean
 ): void {
   const raidCountIncrease = incrementRaidCount ? 1 : 0;
-  const pityTracker = loadPityTrackerDatabase();
+  const pityTracker = loadProfilePityTracker(profile);
+
   const newQuestTracker: QuestTracker = {};
   for (const questStatus of profile.characters.pmc.Quests) {
     if (questStatus.status === QuestStatus.Started) {
@@ -88,12 +97,20 @@ export function updatePityTracker(
       };
     }
   }
-  savePityTrackerDatabase({
+  savePityTrackerDatabase(profile, {
     hideout: newHideoutTracker,
     quests: newQuestTracker,
   });
 }
 
-export function savePityTrackerDatabase(pityTracker: PityTracker): void {
-  fs.writeFileSync(pityTrackerPath, JSON.stringify(pityTracker, null, 2));
+export function savePityTrackerDatabase(
+  profile: ISptProfile,
+  userPityTracker: UserPityTracker
+): void {
+  const pityTracker = loadPityTracker();
+  const newPityTracker: PityTracker = {
+    ...pityTracker,
+    [profile.info.id]: userPityTracker,
+  };
+  fs.writeFileSync(pityTrackerPath, JSON.stringify(newPityTracker, null, 2));
 }

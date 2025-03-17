@@ -1,7 +1,7 @@
 import { IQuest } from "@spt/models/eft/common/tables/IQuest";
 import { IQuestStatus } from "@spt/models/eft/common/tables/IBotBase";
 import { QuestStatus } from "@spt/models/enums/QuestStatus";
-import { loadPityTrackerDatabase } from "./DatabaseUtils";
+import { loadProfilePityTracker } from "./DatabaseUtils";
 import { ISptProfile } from "@spt/models/eft/profile/ISptProfile";
 import {
   includeKeys,
@@ -27,9 +27,10 @@ export class QuestUtils {
   constructor(private logger: ILogger) {}
 
   augmentQuestStatusesWithTrackingInfo(
+    profile: ISptProfile,
     questStatuses: IQuestStatus[]
   ): AugmentedQuestStatus[] {
-    const questTracker = loadPityTrackerDatabase().quests;
+    const questTracker = loadProfilePityTracker(profile).quests;
     return questStatuses.map((questStatus) => ({
       ...questStatus,
       raidsSinceStarted: questTracker[questStatus.qid]?.raidsSinceStarted ?? 0,
@@ -42,6 +43,7 @@ export class QuestUtils {
   ): ItemRequirement[] {
     // augment inProgress Quests with # of raids since accepted
     const inProgressQuests = this.augmentQuestStatusesWithTrackingInfo(
+      profile,
       profile.characters.pmc.Quests.filter(
         (quest) =>
           (quest.qid !== "5c51aac186f77432ea65c552" || !excludeCollector) &&

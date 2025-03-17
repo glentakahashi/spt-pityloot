@@ -1,7 +1,7 @@
 import { IHideoutArea } from "@spt/models/eft/hideout/IHideoutArea";
 import { ISptProfile } from "@spt/models/eft/profile/ISptProfile";
 import { HideoutAreas } from "@spt/models/enums/HideoutAreas";
-import { loadPityTrackerDatabase } from "./DatabaseUtils";
+import { loadProfilePityTracker } from "./DatabaseUtils";
 import { HideoutItemRequirement } from "./LootProbabilityManager";
 import { ILogger } from "@spt/models/spt/utils/ILogger";
 
@@ -38,7 +38,7 @@ export class HideoutUtils {
       hideoutAreas,
       profile
     );
-    const hideoutTracker = loadPityTrackerDatabase().hideout;
+    const hideoutTracker = loadProfilePityTracker(profile).hideout;
     return possibleUpgrades.flatMap(
       (possibleUpgrade): HideoutItemRequirement[] => {
         const tracker = hideoutTracker[possibleUpgrade.area];
