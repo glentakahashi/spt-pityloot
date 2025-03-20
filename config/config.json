@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "debug": true,
+  "debug": false,
   "trace": false,
   "appliesToQuests": true,
   "includeGunsmith": true,

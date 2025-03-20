@@ -147,8 +147,9 @@ class Mod implements IPreSptLoadMod {
     function handlePityChange(sessionId: string, incrementRaidCount: boolean) {
       const fullProfile = profileHelper.getFullProfile(sessionId);
       if (!fullProfile?.characters.pmc || !fullProfile.characters.pmc.Hideout) {
-        debug &&
-          logger.info(`Profile not valid yet, skipping initialization for now`);
+        logger.warning(
+          `Profile not valid yet, skipping initialization for now`
+        );
         return;
       }
       const tables = databaseServer.getTables();
