@@ -277,11 +277,13 @@ export class LootProbabilityManager {
     )) {
       const category = categoryMappings[categoryId] ?? "other";
       const staticMultiplier = wishlistMultipliers[category];
-      debug &&
-        this.logger.info(
-          `Applied static loot multiplier of ${staticMultiplier} to item ${itemId} in category ${category}`
-        );
-      staticWishlistMultipliers[itemId] = staticMultiplier;
+      if (staticMultiplier != null) {
+        debug &&
+          this.logger.info(
+            `Applied static loot multiplier of ${staticMultiplier} to item ${itemId} in category ${category}`
+          );
+        staticWishlistMultipliers[itemId] = staticMultiplier;
+      }
     }
 
     return (tpl: string, relativeProbability: number, loc: string) => {
