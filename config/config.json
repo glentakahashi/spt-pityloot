@@ -14,5 +14,13 @@
   "dropRateIncreaseType": "raid",
   "dropRateIncreasePerRaid": 0.25,
   "dropRateIncreasePerHour": 0.05,
+  "appliesToWishlist": false,
+  "wishlistMultipliers": {
+    "tasks": 5.0,
+    "equipment": 5.0,
+    "barter": 5.0,
+    "hideout": 5.0,
+    "other": 5.0
+  },
   "excludeCollector": false
 }

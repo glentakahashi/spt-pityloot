@@ -110,6 +110,7 @@ class Mod implements IPreSptLoadMod {
                     );
                   const getNewLootProbability =
                     pityLootManager.createLootProbabilityUpdater(
+                      fullProfile,
                       incompleteItemRequirements
                     );
 
@@ -298,6 +299,7 @@ class Mod implements IPreSptLoadMod {
                   );
                 const getNewLootProbability =
                   pityLootManager.createLootProbabilityUpdater(
+                    fullProfile,
                     incompleteItemRequirements
                   );
                 tables.bots = pityLootManager.getUpdatedBotTables(

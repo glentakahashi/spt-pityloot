@@ -8,6 +8,8 @@ import {
   increasesStack,
   debug,
   trace,
+  appliesToWishlist,
+  wishlistMultipliers,
 } from "../config/config.json";
 import { ILogger } from "@spt/models/spt/utils/ILogger";
 import { ILocations } from "@spt/models/spt/server/ILocations";
@@ -214,7 +216,10 @@ export class LootProbabilityManager {
     return incompleteItemRequirements;
   }
 
-  createLootProbabilityUpdater(incompleteItemRequirements: ItemRequirement[]) {
+  createLootProbabilityUpdater(
+    profile: ISptProfile,
+    incompleteItemRequirements: ItemRequirement[]
+  ) {
     // With the remaining conditions, calculate the max new drop rate by item type
     const itemDropRateMultipliers: Record<
       string,
@@ -259,10 +264,33 @@ export class LootProbabilityManager {
         );
       });
 
+    const staticWishlistMultipliers: Record<string, number> = {};
+    const categoryMappings: Record<number, keyof typeof wishlistMultipliers> = {
+      0: "tasks",
+      1: "hideout",
+      2: "barter",
+      3: "equipment",
+      4: "other",
+    };
+    for (const [itemId, categoryId] of Object.entries(
+      profile.characters.pmc.WishList
+    )) {
+      const category = categoryMappings[categoryId] ?? "other";
+      const staticMultiplier = wishlistMultipliers[category];
+      debug &&
+        this.logger.info(
+          `Applied static loot multiplier of ${staticMultiplier} to item ${itemId} in category ${category}`
+        );
+      staticWishlistMultipliers[itemId] = staticMultiplier;
+    }
+
     return (tpl: string, relativeProbability: number, loc: string) => {
-      const maybeMult = itemDropRateMultipliers[tpl];
       let newRelativeProbability = relativeProbability;
-      if (maybeMult) {
+      const maybeStaticMult = staticWishlistMultipliers[tpl];
+      const maybeMult = itemDropRateMultipliers[tpl];
+      if (maybeStaticMult) {
+        newRelativeProbability *= maybeStaticMult;
+      } else if (maybeMult) {
         if (dropRateIncreaseType === "raid") {
           newRelativeProbability *= Math.min(
             maxDropRateMultiplier,
@@ -279,11 +307,11 @@ export class LootProbabilityManager {
           newRelativeProbability *= keysAdditionalMultiplier;
         }
         newRelativeProbability = Math.round(newRelativeProbability);
-        trace &&
-          this.logger.info(
-            `Updated drop rate for item ${tpl} in ${loc} from ${relativeProbability} to ${newRelativeProbability}`
-          );
       }
+      trace &&
+        this.logger.info(
+          `Updated drop rate for item ${tpl} in ${loc} from ${relativeProbability} to ${newRelativeProbability}`
+        );
       return newRelativeProbability;
     };
   }
