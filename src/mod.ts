@@ -214,12 +214,12 @@ class Mod implements IPreSptLoadMod {
             const survived = [ExitStatus.SURVIVED, ExitStatus.RUNNER].includes(
               info.results.result
             );
-            if (failed || (!onlyIncreaseOnFailedRaids && survived)) {
-              handlePityChange(
-                sessionId,
-                info.results.profile.Info.Side !== "Savage" || includeScavRaids
-              );
-            }
+            handlePityChange(
+              sessionId,
+              (failed || (!onlyIncreaseOnFailedRaids && survived)) &&
+                (info.results.profile.Info.Side !== "Savage" ||
+                  includeScavRaids)
+            );
             return output;
           },
         },
